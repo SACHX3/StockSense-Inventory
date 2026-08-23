@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-arrow-left-right me-2 text-primary"></i>Stock Adjustment</h4>
+  <a th:href="@{/inventory}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Adjust Stock Level</div>
+      <div class="card-body">
+        <form th:action="@{/inventory/adjust}" method="post">
+          <div class="mb-3">
+            <label class="form-label">Product *</label>
+            <select name="productId" id="productSel" class="form-select" required onchange="loadStock()">
+              <option value="">-- Select Product --</option>
+              <option th:each="p : ${products}" th:value="${p.id}"
+                      th:text="${p.name + ' (SKU: ' + p.sku + ') - Stock: ' + p.quantity}"
+                      th:data-stock="${p.quantity}">Product</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Movement Type *</label>
+            <select name="movementType" class="form-select" required>
+              <option value="STOCK_IN">📦 Stock IN (Receiving goods)</option>
+              <option value="STOCK_OUT">📤 Stock OUT (Manual removal)</option>
+              <option value="ADJUSTMENT">🔄 Adjustment (Set exact quantity)</option>
+              <option value="DAMAGED">⚠️ Damaged / Expired</option>
+              <option value="RETURN">↩️ Return to Supplier</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantity *</label>
+            <input type="number" min="1" name="quantity" class="form-control" required placeholder="Enter quantity"/>
+            <div class="form-text" id="currentStockInfo"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Reference Number</label>
+            <input type="text" name="referenceNo" class="form-control" placeholder="e.g. PO-2024-001, INV-123"/>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Apply Adjustment</button>
+            <a th:href="@{/inventory}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts">
+<script>
+function loadStock() {
+  const sel = document.getElementById('productSel');
+  const opt = sel.options[sel.selectedIndex];
+  const stock = opt.getAttribute('data-stock');
+  const info = document.getElementById('currentStockInfo');
+  if (stock !== null) info.innerHTML = '<strong>Current stock: ' + stock + ' units</strong>';
+  else info.innerHTML = '';
+}
+</script>
+</th:block>
+</html>
