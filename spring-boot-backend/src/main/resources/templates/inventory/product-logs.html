@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-clipboard-data me-2"></i>Inventory History: <span th:text="${product.name}">Product</span></h4>
+  <a th:href="@{/inventory}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<div class="card mb-3" style="background:#f8fafc;">
+  <div class="card-body py-2">
+    <div class="row g-2 text-center">
+      <div class="col-3"><small class="text-muted">SKU</small><div class="fw-600" th:text="${product.sku}">SKU</div></div>
+      <div class="col-3"><small class="text-muted">Category</small><div class="fw-600" th:text="${product.category.name}">Cat</div></div>
+      <div class="col-3"><small class="text-muted">Current Stock</small>
+        <div th:classappend="${product.quantity <= product.minStockLevel} ? 'fw-600 text-danger' : 'fw-600 text-success'"
+             th:text="${product.quantity} + ' ' + ${product.unit}">0</div>
+      </div>
+      <div class="col-3"><small class="text-muted">Min Level</small><div class="fw-600" th:text="${product.minStockLevel}">10</div></div>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Before</th><th>After</th><th>Ref</th><th>User</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr th:each="log : ${logs.content}">
+          <td><small th:text="${#temporals.format(log.createdAt, 'dd MMM yy HH:mm')}"></small></td>
+          <td><span class="badge bg-secondary" th:text="${log.movementType}"></span></td>
+          <td th:classappend="${log.movementType.name() == 'STOCK_IN' or log.movementType.name() == 'RETURN'} ? 'text-success fw-600' : 'text-danger fw-600'"
+              th:text="${log.quantity}">0</td>
+          <td th:text="${log.quantityBefore}">0</td>
+          <td th:text="${log.quantityAfter}">0</td>
+          <td><small th:text="${log.referenceNo ?: '-'}"></small></td>
+          <td><small th:text="${log.user != null ? log.user.username : 'system'}"></small></td>
+          <td><small class="text-muted" th:text="${log.notes ?: '-'}"></small></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>

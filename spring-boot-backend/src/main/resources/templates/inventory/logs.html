@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div class="page-header">
+  <h4><i class="bi bi-clipboard-data me-2 text-primary"></i>Inventory Logs</h4>
+  <a th:href="@{/inventory/adjust}" class="btn btn-primary btn-sm">
+    <i class="bi bi-arrow-left-right me-1"></i>Stock Adjustment
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th style="width:42px;">#</th>
+          <th style="width:56px;"></th>
+          <th>Product</th>
+          <th>Type</th>
+          <th>Qty Change</th>
+          <th>Before</th>
+          <th>After</th>
+          <th>Reference</th>
+          <th>User</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:if="${logs.isEmpty()}">
+          <td colspan="10" class="text-center py-4 text-muted">No logs found.</td>
+        </tr>
+        <tr th:each="log : ${logs.content}">
+
+          <!-- ID -->
+          <td class="text-muted align-middle" th:text="${log.id}"></td>
+
+          <!-- Product image -->
+          <td style="padding:7px 6px;vertical-align:middle;">
+            <div style="width:42px;height:42px;border-radius:8px;overflow:hidden;
+                        background:#f1f5f9;display:flex;align-items:center;
+                        justify-content:center;border:1px solid #e2e8f0;">
+              <img th:if="${log.product.imagePath}"
+                   th:src="@{'/' + ${log.product.imagePath}}"
+                   style="width:42px;height:42px;object-fit:cover;"
+                   onerror="this.parentElement.innerHTML='&lt;i class=&quot;bi bi-box&quot; style=&quot;color:#94a3b8;font-size:1rem;&quot;&gt;&lt;/i&gt;'"/>
+              <i th:unless="${log.product.imagePath}"
+                 class="bi bi-box" style="color:#94a3b8;font-size:1rem;"></i>
+            </div>
+          </td>
+
+          <!-- Product name + SKU -->
+          <td style="vertical-align:middle;">
+            <div class="fw-600" style="font-size:.875rem;" th:text="${log.product.name}">Product</div>
+            <small class="text-muted" th:text="${log.product.sku}">SKU</small>
+          </td>
+
+          <!-- Movement type badge -->
+          <td style="vertical-align:middle;">
+            <span th:switch="${log.movementType.name()}">
+              <span th:case="'STOCK_IN'"      class="badge bg-success">IN</span>
+              <span th:case="'STOCK_OUT'"     class="badge bg-danger">OUT</span>
+              <span th:case="'ADJUSTMENT'"    class="badge bg-info text-dark">ADJUST</span>
+              <span th:case="'DAMAGED'"       class="badge bg-dark">DAMAGED</span>
+              <span th:case="'RETURN'"        class="badge bg-warning text-dark">RETURN</span>
+              <span th:case="'INVOICE_UPDATE'" class="badge bg-primary">INVOICE</span>
+              <span th:case="*" class="badge bg-secondary" th:text="${log.movementType}">TYPE</span>
+            </span>
+          </td>
+
+          <!-- Qty change -->
+          <td style="vertical-align:middle;">
+            <span th:classappend="${log.movementType.name() == 'STOCK_OUT' or log.movementType.name() == 'DAMAGED'} ? 'fw-600 text-danger' : 'fw-600 text-success'"
+                  th:text="${(log.movementType.name() == 'STOCK_OUT' or log.movementType.name() == 'DAMAGED') ? '-' : '+'} + ${log.quantity}">+0</span>
+          </td>
+
+          <!-- Before / After -->
+          <td class="text-muted align-middle" th:text="${log.quantityBefore}">0</td>
+          <td class="align-middle fw-600" th:text="${log.quantityAfter}">0</td>
+
+          <!-- Reference -->
+          <td style="vertical-align:middle;">
+            <small class="text-muted" th:text="${log.referenceNo ?: '-'}">Ref</small>
+          </td>
+
+          <!-- User -->
+          <td style="vertical-align:middle;">
+            <small th:text="${log.user != null ? log.user.username : 'system'}">user</small>
+          </td>
+
+          <!-- Date -->
+          <td style="vertical-align:middle;">
+            <small th:text="${#temporals.format(log.createdAt, 'dd MMM yyyy HH:mm')}">date</small>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="card-footer d-flex justify-content-between align-items-center"
+       th:if="${logs.totalPages > 1}">
+    <small class="text-muted"
+           th:text="'Page ' + (${logs.number} + 1) + ' of ' + ${logs.totalPages} + ' (' + ${logs.totalElements} + ' total)'"></small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li th:classappend="${logs.first} ? 'page-item disabled' : 'page-item'">
+          <a class="page-link" th:href="@{/inventory(page=${logs.number - 1})}">«</a>
+        </li>
+        <li th:each="i : ${#numbers.sequence(0, logs.totalPages - 1)}"
+            th:if="${i >= logs.number - 2 and i <= logs.number + 2}"
+            th:classappend="${i == logs.number} ? 'page-item active' : 'page-item'">
+          <a class="page-link" th:href="@{/inventory(page=${i})}" th:text="${i + 1}">1</a>
+        </li>
+        <li th:classappend="${logs.last} ? 'page-item disabled' : 'page-item'">
+          <a class="page-link" th:href="@{/inventory(page=${logs.number + 1})}">»</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</div>
+
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>
