@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-truck me-2 text-primary"></i>Suppliers</h4>
+  <a th:href="@{/suppliers/create}" class="btn btn-primary btn-sm" sec:authorize="hasAnyRole('ADMIN','INVENTORY_MANAGER')">
+    <i class="bi bi-plus-lg me-1"></i>Add Supplier
+  </a>
+</div>
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" th:action="@{/suppliers}" class="d-flex gap-2">
+      <input type="text" name="keyword" class="form-control form-control-sm" placeholder="Search by name or contact..." th:value="${keyword}"/>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+      <a th:href="@{/suppliers}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x"></i></a>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>Name</th><th>Contact</th><th>Phone</th><th>City</th><th>Payment Terms</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+        <tr th:if="${#lists.isEmpty(suppliers)}"><td colspan="8" class="text-center py-4 text-muted">No suppliers found.</td></tr>
+        <tr th:each="s : ${suppliers}">
+          <td th:text="${s.id}"></td>
+          <td>
+            <div class="fw-600" th:text="${s.name}">Name</div>
+            <small class="text-muted" th:text="${s.email ?: ''}"></small>
+          </td>
+          <td th:text="${s.contactPerson ?: '-'}">Contact</td>
+          <td th:text="${s.phone}">Phone</td>
+          <td th:text="${s.city ?: '-'}">City</td>
+          <td><span class="badge bg-light text-dark border" th:text="${s.paymentTerms ?: '-'}">Terms</span></td>
+          <td><span th:classappend="${s.isActive} ? 'badge bg-success' : 'badge bg-secondary'"
+                    th:text="${s.isActive} ? 'Active' : 'Inactive'">Status</span></td>
+          <td>
+            <div class="d-flex gap-1">
+              <a th:href="@{'/suppliers/view/' + ${s.id}}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+              <a th:href="@{'/suppliers/edit/' + ${s.id}}" class="btn btn-sm btn-outline-primary" sec:authorize="hasAnyRole('ADMIN','INVENTORY_MANAGER')"><i class="bi bi-pencil"></i></a>
+              <form th:action="@{'/suppliers/delete/' + ${s.id}}" method="post" style="display:inline;"
+                    sec:authorize="hasRole('ADMIN')" onsubmit="return confirm('Delete this supplier?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>
