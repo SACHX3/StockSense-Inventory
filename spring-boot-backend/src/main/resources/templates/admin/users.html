@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-people me-2 text-primary"></i>User Management</h4>
+  <a th:href="@{/users/create}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add User</a>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+      <tbody>
+        <tr th:each="u : ${users}">
+          <td th:text="${u.id}"></td>
+          <td>
+            <div class="fw-600" th:text="${u.fullName}">Name</div>
+            <small class="text-muted" th:text="'@' + ${u.username}">@user</small>
+          </td>
+          <td th:text="${u.email}">email</td>
+          <td>
+            <span th:switch="${u.role.name}">
+              <span th:case="'ROLE_ADMIN'" class="badge bg-danger">Admin</span>
+              <span th:case="'ROLE_INVENTORY_MANAGER'" class="badge bg-warning text-dark">Manager</span>
+              <span th:case="'ROLE_STAFF'" class="badge bg-info text-dark">Staff</span>
+              <span th:case="*" class="badge bg-secondary" th:text="${u.role.name}">Role</span>
+            </span>
+          </td>
+          <td>
+            <span th:classappend="${u.isActive} ? 'badge bg-success' : 'badge bg-secondary'"
+                  th:text="${u.isActive} ? 'Active' : 'Inactive'">Status</span>
+          </td>
+          <td><small th:text="${u.lastLogin != null ? #temporals.format(u.lastLogin, 'dd MMM yy HH:mm') : 'Never'}">Never</small></td>
+          <td>
+            <div class="d-flex gap-1">
+              <a th:href="@{'/users/edit/' + ${u.id}}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+              <form th:action="@{'/users/toggle/' + ${u.id}}" method="post" style="display:inline;">
+                <button type="submit" th:classappend="${u.isActive} ? 'btn btn-sm btn-outline-warning' : 'btn btn-sm btn-outline-success'"
+                        th:title="${u.isActive} ? 'Deactivate' : 'Activate'">
+                  <i th:classappend="${u.isActive} ? 'bi bi-pause-circle' : 'bi bi-play-circle'"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>

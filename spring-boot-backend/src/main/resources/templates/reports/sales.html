@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<!-- SCREEN -->
+<div id="screenView">
+  <div class="page-header">
+    <h4><i class="bi bi-receipt me-2 text-primary"></i>Sales Report</h4>
+    <div class="d-flex gap-2">
+      <button onclick="window.print()" class="btn btn-primary btn-sm">
+        <i class="bi bi-printer me-1"></i>Print / Save PDF
+      </button>
+      <a th:href="@{/reports}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </a>
+    </div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <form method="get" th:action="@{/reports/sales}" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label mb-1 small fw-600">From</label>
+          <input type="date" name="from" class="form-control form-control-sm" th:value="${from}"/>
+        </div>
+        <div class="col-auto">
+          <label class="form-label mb-1 small fw-600">To</label>
+          <input type="date" name="to" class="form-control form-control-sm" th:value="${to}"/>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filter</button>
+        </div>
+        <div class="col-auto">
+          <a th:href="@{/reports/sales}" class="btn btn-outline-secondary btn-sm">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.6rem;font-weight:800;color:#2563eb;" th:text="${#lists.size(sales)}">0</div><div class="text-muted small">Total Sales</div></div></div>
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.1rem;font-weight:800;color:#16a34a;" id="sRevenue">...</div><div class="text-muted small">Total Revenue</div></div></div>
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.1rem;font-weight:800;color:#d97706;" id="sDiscount">...</div><div class="text-muted small">Total Discount</div></div></div>
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.1rem;font-weight:800;color:#0891b2;" id="sAvg">...</div><div class="text-muted small">Average Sale</div></div></div>
+  </div>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-table me-2"></i>Sales Transactions</span>
+      <span class="badge bg-secondary" th:text="${#lists.size(sales)} + ' records'"></span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-hover mb-0" id="salesTable">
+        <thead><tr><th>#</th><th>Invoice</th><th>Customer</th><th>Subtotal</th><th>Discount</th><th>Total</th><th>Payment</th><th>Cashier</th><th>Date</th></tr></thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(sales)}"><td colspan="9" class="text-center text-muted py-4">No sales found.</td></tr>
+          <tr th:each="s, i : ${sales}" th:data-total="${s.totalAmount}" th:data-disc="${s.discountAmount}">
+            <td class="text-muted" th:text="${i.index + 1}"></td>
+            <td><a th:href="@{'/sales/view/' + ${s.id}}" class="text-decoration-none"><code th:text="${s.invoiceNumber}"></code></a></td>
+            <td th:text="${s.customerName ?: 'Walk-in Customer'}"></td>
+            <td th:text="${'Rs. ' + #numbers.formatDecimal(s.subtotal != null ? s.subtotal : 0, 0, 'COMMA', 2, 'POINT')}"></td>
+            <td class="text-danger" th:text="${s.discountAmount != null and s.discountAmount.doubleValue() > 0 ? 'Rs. ' + #numbers.formatDecimal(s.discountAmount, 0, 'COMMA', 2, 'POINT') : '-'}"></td>
+            <td class="fw-600 text-success" th:text="${'Rs. ' + #numbers.formatDecimal(s.totalAmount != null ? s.totalAmount : 0, 0, 'COMMA', 2, 'POINT')}"></td>
+            <td>
+              <span th:switch="${s.paymentMethod?.name()}">
+                <span th:case="'CASH'" class="badge bg-success">Cash</span>
+                <span th:case="'CARD'" class="badge bg-info text-dark">Card</span>
+                <span th:case="'BANK_TRANSFER'" class="badge bg-primary">Bank</span>
+                <span th:case="'CREDIT'" class="badge bg-warning text-dark">Credit</span>
+                <span th:case="*" class="badge bg-secondary" th:text="${s.paymentMethod}">-</span>
+              </span>
+            </td>
+            <td><small th:text="${s.cashierName ?: '-'}"></small></td>
+            <td><small th:text="${#temporals.format(s.createdAt, 'dd MMM yyyy HH:mm')}"></small></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr style="background:#f8fafc;font-weight:600;">
+            <td colspan="3" class="text-end pe-3">Totals:</td>
+            <td id="fSub" class="text-primary">...</td>
+            <td id="fDisc" class="text-danger">...</td>
+            <td id="fTotal" class="text-success">...</td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT AREA (hidden on screen, shown on print) -->
+<div id="printArea">
+  <div class="rh">
+    <div class="rh-left">
+      <h1>SALES REPORT</h1>
+      <p>StockSense &mdash; AI-Powered Inventory Management System</p>
+    </div>
+    <div class="rh-right">
+      <div>Period: <span th:text="${from}"></span> &mdash; <span th:text="${to}"></span></div>
+      <div>Generated: <span id="pDate"></span></div>
+    </div>
+  </div>
+
+  <div class="rs">
+    <div class="rs-box"><div class="v" th:text="${#lists.size(sales)}">0</div><div class="l">Total Sales</div></div>
+    <div class="rs-box"><div class="v" id="pRevenue">-</div><div class="l">Total Revenue</div></div>
+    <div class="rs-box"><div class="v" id="pDiscount">-</div><div class="l">Total Discount</div></div>
+    <div class="rs-box"><div class="v" id="pAvg">-</div><div class="l">Average Sale</div></div>
+  </div>
+
+  <div class="sec-title">Sales Transactions</div>
+  <table class="rpt-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Invoice No.</th><th>Customer</th>
+        <th class="r">Subtotal</th><th class="r">Discount</th><th class="r">Total (Rs.)</th>
+        <th class="c">Payment</th><th>Cashier</th><th>Date &amp; Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:if="${#lists.isEmpty(sales)}"><td colspan="9" style="text-align:center;padding:12pt;">No sales found.</td></tr>
+      <tr th:each="s, i : ${sales}" th:class="${i.index % 2 != 0} ? 'alt' : ''">
+        <td th:text="${i.index + 1}"></td>
+        <td style="font-weight:bold;" th:text="${s.invoiceNumber}"></td>
+        <td th:text="${s.customerName ?: 'Walk-in Customer'}"></td>
+        <td class="r" th:text="${#numbers.formatDecimal(s.subtotal != null ? s.subtotal : 0, 0, 'COMMA', 2, 'POINT')}"></td>
+        <td class="r" th:text="${s.discountAmount != null and s.discountAmount.doubleValue() > 0 ? #numbers.formatDecimal(s.discountAmount, 0, 'COMMA', 2, 'POINT') : '-'}"></td>
+        <td class="r" style="font-weight:bold;" th:text="${#numbers.formatDecimal(s.totalAmount != null ? s.totalAmount : 0, 0, 'COMMA', 2, 'POINT')}"></td>
+        <td class="c" th:text="${s.paymentMethod?.name()}"></td>
+        <td th:text="${s.cashierName ?: '-'}"></td>
+        <td th:text="${#temporals.format(s.createdAt, 'dd MMM yyyy HH:mm')}"></td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3">TOTAL</td><td class="r" id="pfSub">-</td><td class="r" id="pfDisc">-</td><td class="r" id="pfTotal">-</td><td colspan="3"></td></tr>
+    </tfoot>
+  </table>
+
+  <div class="rpt-footer">
+    <span>StockSense &mdash; AI-Powered Inventory Management System</span>
+    <span>Printed: <span id="pDate2"></span></span>
+  </div>
+  <div class="rpt-sign">
+    <div><div class="rpt-sign-line">Prepared By</div></div>
+    <div><div class="rpt-sign-line">Authorized Signature</div></div>
+  </div>
+</div>
+
+</th:block>
+<th:block th:fragment="scripts">
+<style>
+/* Screen: hide print area */
+#printArea { display:none; }
+
+/* Print styles */
+@media print {
+  @page { margin:18mm 20mm; size:A4; }
+  * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+
+  #sidebar, .topbar, #screenView { display:none !important; }
+  .main-content { margin-left:0 !important; padding-top:0 !important; }
+  .content-area { padding:0 !important; }
+  #printArea { display:block !important; }
+
+  body { background:#fff !important; font-family:Arial,sans-serif !important; font-size:10pt !important; color:#000 !important; }
+
+  .rh { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2pt solid #000; padding-bottom:8pt; margin-bottom:12pt; }
+  .rh-left h1 { font-size:16pt; font-weight:bold; letter-spacing:1pt; margin:0; }
+  .rh-left p { font-size:8pt; margin-top:3pt; }
+  .rh-right { text-align:right; font-size:8.5pt; line-height:1.8; }
+
+  .rs { display:flex; gap:0; margin-bottom:14pt; border:1pt solid #000; }
+  .rs-box { flex:1; padding:10pt; text-align:center; border-right:1pt solid #000; }
+  .rs-box:last-child { border-right:none; }
+  .rs-box .v { font-size:16pt; font-weight:bold; }
+  .rs-box .l { font-size:7.5pt; text-transform:uppercase; letter-spacing:.5pt; margin-top:4pt; }
+
+  .sec-title { font-size:9pt; font-weight:bold; text-transform:uppercase; letter-spacing:1pt; border-bottom:1pt solid #000; padding-bottom:3pt; margin-bottom:7pt; margin-top:12pt; }
+
+  .rpt-table { width:100%; border-collapse:collapse; font-size:9pt; margin-bottom:12pt; }
+  .rpt-table thead tr th { background:#000 !important; color:#fff !important; padding:5pt 7pt; text-align:left; font-weight:bold; }
+  .rpt-table thead tr th.r { text-align:right; }
+  .rpt-table thead tr th.c { text-align:center; }
+  .rpt-table tbody tr td { padding:4.5pt 7pt; border-bottom:0.5pt solid #ccc; }
+  .rpt-table tbody tr td.r { text-align:right; }
+  .rpt-table tbody tr td.c { text-align:center; }
+  .rpt-table tbody tr.alt td { background:#f5f5f5 !important; }
+  .rpt-table tfoot tr td { background:#000 !important; color:#fff !important; font-weight:bold; padding:6pt 7pt; }
+  .rpt-table tfoot tr td.r { text-align:right; }
+
+  .rpt-footer { display:flex; justify-content:space-between; font-size:8pt; border-top:1pt solid #000; padding-top:6pt; margin-top:18pt; }
+  .rpt-sign { display:flex; gap:50pt; margin-top:24pt; }
+  .rpt-sign > div { flex:1; text-align:center; }
+  .rpt-sign-line { border-top:1pt solid #000; padding-top:5pt; font-size:8pt; }
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var rev = 0, disc = 0, cnt = 0;
+  document.querySelectorAll('#salesTable tbody tr[data-total]').forEach(function(r) {
+    rev  += parseFloat(r.getAttribute('data-total')) || 0;
+    disc += parseFloat(r.getAttribute('data-disc'))  || 0;
+    cnt++;
+  });
+  var avg = cnt > 0 ? rev / cnt : 0;
+  function rs(v) { return 'Rs. ' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function n(v)  { return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function $s(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  $s('sRevenue',rs(rev)); $s('sDiscount',rs(disc)); $s('sAvg',rs(avg));
+  $s('fSub',rs(rev+disc)); $s('fDisc',rs(disc)); $s('fTotal',rs(rev));
+  $s('pRevenue',rs(rev)); $s('pDiscount',rs(disc)); $s('pAvg',rs(avg));
+  $s('pfSub',n(rev+disc)); $s('pfDisc',n(disc)); $s('pfTotal',n(rev));
+  var now = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  $s('pDate',now); $s('pDate2',now);
+});
+</script>
+</th:block>
+</html>

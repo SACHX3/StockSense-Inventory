@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4 th:text="${userId != null ? 'Edit User' : 'Add User'}">User Form</h4>
+  <a th:href="@{/users}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person me-2"></i>User Information</div>
+      <div class="card-body">
+        <form th:action="${userId != null ? '/users/edit/' + userId : '/users/create'}" method="post">
+          <div class="mb-3">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="fullName" class="form-control" required th:value="${user.fullName}" placeholder="e.g. John Silva"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Username *</label>
+            <input type="text" name="username" class="form-control" required th:value="${user.username}" placeholder="e.g. john.silva"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control" required th:value="${user.email}"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" th:text="${userId != null ? 'Password (leave blank to keep current)' : 'Password *'}">Password</label>
+            <input type="password" name="password" class="form-control" th:required="${userId == null}" minlength="6" placeholder="Minimum 6 characters"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-control" th:value="${user.phone}" placeholder="+94 77 xxx xxxx"/>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Role *</label>
+            <select name="roleId" class="form-select" required>
+              <option value="">Select Role</option>
+              <option th:each="r : ${roles}" th:value="${r.id}"
+                      th:text="${r.name == 'ROLE_ADMIN' ? 'Administrator' : (r.name == 'ROLE_INVENTORY_MANAGER' ? 'Inventory Manager' : 'Staff')}"
+                      th:selected="${user.roleId == r.id}">Role</option>
+            </select>
+            <div class="form-text">
+              <strong>Admin:</strong> Full access | <strong>Manager:</strong> Inventory &amp; products | <strong>Staff:</strong> Sales only
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>
+              <span th:text="${userId != null ? 'Update User' : 'Create User'}">Save</span>
+            </button>
+            <a th:href="@{/users}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>

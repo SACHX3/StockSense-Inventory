@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div id="screenView">
+  <div class="page-header">
+    <h4><i class="bi bi-truck me-2 text-warning"></i>Supplier Report</h4>
+    <div class="d-flex gap-2">
+      <button onclick="window.print()" class="btn btn-primary btn-sm"><i class="bi bi-printer me-1"></i>Print / Save PDF</button>
+      <a th:href="@{/reports}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.6rem;font-weight:800;color:#2563eb;" th:text="${#lists.size(suppliers)}">0</div><div class="text-muted small">Total Suppliers</div></div></div>
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.6rem;font-weight:800;color:#16a34a;" id="sActive">0</div><div class="text-muted small">Active</div></div></div>
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.6rem;font-weight:800;color:#dc2626;" id="sInactive">0</div><div class="text-muted small">Inactive</div></div></div>
+    <div class="col-6 col-md-3"><div class="card text-center p-3"><div style="font-size:1.6rem;font-weight:800;color:#7c3aed;" id="sCities">0</div><div class="text-muted small">Cities</div></div></div>
+  </div>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between"><span><i class="bi bi-table me-2"></i>Supplier Directory</span><span class="badge bg-secondary" th:text="${#lists.size(suppliers)} + ' suppliers'"></span></div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" id="suppTable">
+        <thead><tr><th>#</th><th>Supplier Name</th><th>Contact Person</th><th>Phone</th><th>Email</th><th>City</th><th>Payment Terms</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(suppliers)}"><td colspan="8" class="text-center text-muted py-4">No suppliers found.</td></tr>
+          <tr th:each="s, i : ${suppliers}" th:data-active="${s.isActive}" th:data-city="${s.city ?: ''}">
+            <td class="text-muted" th:text="${i.index + 1}"></td>
+            <td><div style="font-weight:600;" th:text="${s.name}"></div><small class="text-muted" th:text="${s.country ?: ''}"></small></td>
+            <td th:text="${s.contactPerson ?: '-'}"></td>
+            <td th:text="${s.phone ?: '-'}"></td>
+            <td><small th:text="${s.email ?: '-'}"></small></td>
+            <td th:text="${s.city ?: '-'}"></td>
+            <td><span th:if="${s.paymentTerms != null}" class="badge bg-light text-dark border" th:text="${s.paymentTerms}"></span><span th:unless="${s.paymentTerms != null}" class="text-muted">-</span></td>
+            <td><span th:if="${s.isActive}" class="badge bg-success">Active</span><span th:unless="${s.isActive}" class="badge bg-secondary">Inactive</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT AREA -->
+<div id="printArea">
+  <div class="rh">
+    <div class="rh-left"><h1>SUPPLIER REPORT</h1><p>StockSense &mdash; AI-Powered Inventory Management System</p></div>
+    <div class="rh-right"><div>Generated: <span id="pDate"></span></div></div>
+  </div>
+  <div class="rs">
+    <div class="rs-box"><div class="v" th:text="${#lists.size(suppliers)}">0</div><div class="l">Total Suppliers</div></div>
+    <div class="rs-box"><div class="v" id="pActive">0</div><div class="l">Active</div></div>
+    <div class="rs-box"><div class="v" id="pInactive">0</div><div class="l">Inactive</div></div>
+    <div class="rs-box"><div class="v" id="pCities">0</div><div class="l">Cities</div></div>
+  </div>
+  <div class="sec-title">Supplier Directory</div>
+  <table class="rpt-table">
+    <thead>
+      <tr><th>#</th><th>Supplier Name</th><th>Contact Person</th><th>Phone</th><th>Email</th><th>City</th><th class="c">Payment Terms</th><th class="c">Status</th></tr>
+    </thead>
+    <tbody>
+      <tr th:if="${#lists.isEmpty(suppliers)}"><td colspan="8" style="text-align:center;padding:12pt;">No suppliers found.</td></tr>
+      <tr th:each="s, i : ${suppliers}" th:class="${i.index % 2 != 0} ? 'alt' : ''">
+        <td th:text="${i.index + 1}"></td>
+        <td><div style="font-weight:bold;" th:text="${s.name}"></div><div style="font-size:7.5pt;" th:text="${s.country ?: ''}"></div></td>
+        <td th:text="${s.contactPerson ?: '-'}"></td>
+        <td th:text="${s.phone ?: '-'}"></td>
+        <td th:text="${s.email ?: '-'}"></td>
+        <td th:text="${s.city ?: '-'}"></td>
+        <td class="c" style="font-weight:bold;" th:text="${s.paymentTerms ?: '-'}"></td>
+        <td class="c" style="font-weight:bold;" th:text="${s.isActive ? 'ACTIVE' : 'INACTIVE'}"></td>
+      </tr>
+    </tbody>
+    <tfoot><tr><td colspan="5">Total: <span th:text="${#lists.size(suppliers)}">0</span> suppliers</td><td colspan="3" style="text-align:right;">Active: <span id="pfActive">0</span> | Inactive: <span id="pfInactive">0</span></td></tr></tfoot>
+  </table>
+  <div class="rpt-footer"><span>StockSense &mdash; AI-Powered Inventory Management System</span><span>Printed: <span id="pDate2"></span></span></div>
+  <div class="rpt-sign"><div><div class="rpt-sign-line">Prepared By</div></div><div><div class="rpt-sign-line">Authorized Signature</div></div></div>
+</div>
+
+</th:block>
+<th:block th:fragment="scripts">
+<style>
+#printArea { display:none; }
+@media print {
+  @page { margin:18mm 20mm; size:A4; }
+  * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  #sidebar, .topbar, #screenView { display:none !important; }
+  .main-content { margin-left:0 !important; padding-top:0 !important; }
+  .content-area { padding:0 !important; }
+  #printArea { display:block !important; }
+  body { background:#fff !important; font-family:Arial,sans-serif !important; font-size:10pt !important; color:#000 !important; }
+  .rh { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2pt solid #000; padding-bottom:8pt; margin-bottom:12pt; }
+  .rh-left h1 { font-size:16pt; font-weight:bold; letter-spacing:1pt; margin:0; }
+  .rh-left p { font-size:8pt; margin-top:3pt; }
+  .rh-right { text-align:right; font-size:8.5pt; line-height:1.8; }
+  .rs { display:flex; gap:0; margin-bottom:14pt; border:1pt solid #000; }
+  .rs-box { flex:1; padding:10pt; text-align:center; border-right:1pt solid #000; }
+  .rs-box:last-child { border-right:none; }
+  .rs-box .v { font-size:16pt; font-weight:bold; }
+  .rs-box .l { font-size:7.5pt; text-transform:uppercase; letter-spacing:.5pt; margin-top:4pt; }
+  .sec-title { font-size:9pt; font-weight:bold; text-transform:uppercase; letter-spacing:1pt; border-bottom:1pt solid #000; padding-bottom:3pt; margin-bottom:7pt; margin-top:12pt; }
+  .rpt-table { width:100%; border-collapse:collapse; font-size:9pt; margin-bottom:12pt; }
+  .rpt-table thead tr th { background:#000 !important; color:#fff !important; padding:5pt 7pt; text-align:left; font-weight:bold; }
+  .rpt-table thead tr th.r { text-align:right; } .rpt-table thead tr th.c { text-align:center; }
+  .rpt-table tbody tr td { padding:4.5pt 7pt; border-bottom:0.5pt solid #ccc; }
+  .rpt-table tbody tr td.r { text-align:right; } .rpt-table tbody tr td.c { text-align:center; }
+  .rpt-table tbody tr.alt td { background:#f5f5f5 !important; }
+  .rpt-table tfoot tr td { background:#000 !important; color:#fff !important; font-weight:bold; padding:6pt 7pt; }
+  .rpt-footer { display:flex; justify-content:space-between; font-size:8pt; border-top:1pt solid #000; padding-top:6pt; margin-top:18pt; }
+  .rpt-sign { display:flex; gap:50pt; margin-top:24pt; }
+  .rpt-sign > div { flex:1; text-align:center; }
+  .rpt-sign-line { border-top:1pt solid #000; padding-top:5pt; font-size:8pt; }
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var active=0,inactive=0,cities=new Set();
+  document.querySelectorAll('#suppTable tbody tr[data-active]').forEach(function(r){
+    r.getAttribute('data-active')==='true'?active++:inactive++;
+    var c=(r.getAttribute('data-city')||'').trim();if(c)cities.add(c.toLowerCase());
+  });
+  function $s(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  $s('sActive',active);$s('sInactive',inactive);$s('sCities',cities.size);
+  $s('pActive',active);$s('pInactive',inactive);$s('pCities',cities.size);
+  $s('pfActive',active);$s('pfInactive',inactive);
+  var now=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  $s('pDate',now);$s('pDate2',now);
+});
+</script>
+</th:block>
+</html>
