@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div class="page-header">
+  <div>
+    <h4 class="mb-0"><i class="bi bi-file-earmark-text me-2 text-primary"></i>OCR Invoice Processing</h4>
+    <p class="text-muted mb-0 mt-1" style="font-size:.83rem;">Extract product data from invoices automatically using AI-powered OCR</p>
+  </div>
+  <a th:href="@{/ocr/upload}" class="btn btn-primary btn-sm">
+    <i class="bi bi-upload me-1"></i>Upload Invoice
+  </a>
+</div>
+
+<!-- How OCR Works strip -->
+<div class="alert alert-info mb-3" style="border-left:4px solid #2563eb;padding:14px 16px;">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <span style="font-size:.82rem;font-weight:700;color:#1e40af;white-space:nowrap;">
+      <i class="bi bi-info-circle me-1"></i>How OCR Works:
+    </span>
+    <span style="display:inline-flex;align-items:center;gap:5px;">
+      <span style="background:#2563eb;color:#fff;border-radius:50%;width:18px;height:18px;font-size:.68rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">1</span>
+      <span style="font-size:.82rem;font-weight:600;color:#1e40af;">Upload Invoice</span>
+    </span>
+    <i class="bi bi-arrow-right" style="color:#93c5fd;font-size:.72rem;"></i>
+    <span style="display:inline-flex;align-items:center;gap:5px;">
+      <span style="background:#2563eb;color:#fff;border-radius:50%;width:18px;height:18px;font-size:.68rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">2</span>
+      <span style="font-size:.82rem;font-weight:600;color:#1e40af;">AI Extracts Data</span>
+    </span>
+    <i class="bi bi-arrow-right" style="color:#93c5fd;font-size:.72rem;"></i>
+    <span style="display:inline-flex;align-items:center;gap:5px;">
+      <span style="background:#2563eb;color:#fff;border-radius:50%;width:18px;height:18px;font-size:.68rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">3</span>
+      <span style="font-size:.82rem;font-weight:600;color:#1e40af;">Validate Items</span>
+    </span>
+    <i class="bi bi-arrow-right" style="color:#93c5fd;font-size:.72rem;"></i>
+    <span style="display:inline-flex;align-items:center;gap:5px;">
+      <span style="background:#16a34a;color:#fff;border-radius:50%;width:18px;height:18px;font-size:.68rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">4</span>
+      <span style="font-size:.82rem;font-weight:600;color:#1e40af;">Apply to Inventory</span>
+    </span>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div th:if="${invoices.isEmpty()}" class="card">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+    <h5 class="text-muted">No Invoices Yet</h5>
+    <p class="text-muted">Upload your first invoice to get started.</p>
+    <a th:href="@{/ocr/upload}" class="btn btn-primary">
+      <i class="bi bi-upload me-1"></i>Upload Invoice
+    </a>
+  </div>
+</div>
+
+<!-- Stats + Table -->
+<div th:unless="${invoices.isEmpty()}">
+
+  <!-- Stats Row -->
+  <div class="row g-2 mb-3 row-cols-2 row-cols-md-5">
+    <div class="col">
+      <div class="card text-center p-3">
+        <i class="bi bi-files" style="font-size:1.4rem;color:#2563eb;margin-bottom:4px;display:block;"></i>
+        <div style="font-size:1.5rem;font-weight:800;color:#2563eb;line-height:1;" th:text="${invoices.totalElements}">0</div>
+        <div class="text-muted small mt-1">Total Invoices</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-center p-3">
+        <i class="bi bi-check-circle-fill" style="font-size:1.4rem;color:#16a34a;margin-bottom:4px;display:block;"></i>
+        <div style="font-size:1.5rem;font-weight:800;color:#16a34a;line-height:1;" id="appliedCount">0</div>
+        <div class="text-muted small mt-1">Applied</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-center p-3">
+        <i class="bi bi-hourglass-split" style="font-size:1.4rem;color:#d97706;margin-bottom:4px;display:block;"></i>
+        <div style="font-size:1.5rem;font-weight:800;color:#d97706;line-height:1;" id="pendingCount">0</div>
+        <div class="text-muted small mt-1">Pending</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-center p-3">
+        <i class="bi bi-file-earmark-pdf-fill" style="font-size:1.4rem;color:#dc2626;margin-bottom:4px;display:block;"></i>
+        <div style="font-size:1.5rem;font-weight:800;color:#dc2626;line-height:1;" id="pdfCount">0</div>
+        <div class="text-muted small mt-1">PDF Files</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-center p-3">
+        <i class="bi bi-file-earmark-image-fill" style="font-size:1.4rem;color:#7c3aed;margin-bottom:4px;display:block;"></i>
+        <div style="font-size:1.5rem;font-weight:800;color:#7c3aed;line-height:1;" id="imageCount">0</div>
+        <div class="text-muted small mt-1">Image Files</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" id="invoiceTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Supplier</th>
+            <th>File</th>
+            <th>OCR Status</th>
+            <th>Total</th>
+            <th>Applied</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="inv : ${invoices.content}"
+              th:data-applied="${inv.isApplied}"
+              th:data-type="${inv.fileType.name()}">
+
+            <td class="align-middle text-muted" th:text="${inv.id}"></td>
+
+            <td class="align-middle">
+              <div class="fw-600" th:text="${inv.supplier != null ? inv.supplier.name : 'Unknown'}"></div>
+              <small class="text-muted" th:text="${inv.invoiceNumber ?: '-'}"></small>
+            </td>
+
+            <td class="align-middle">
+              <span th:classappend="${inv.fileType.name() == 'PDF'} ? 'badge bg-danger' : 'badge bg-info text-dark'"
+                    th:text="${inv.fileType}">TYPE</span>
+            </td>
+
+            <td class="align-middle">
+              <span th:switch="${inv.ocrStatus.name()}">
+                <span th:case="'PENDING'"    class="badge bg-secondary">Pending</span>
+                <span th:case="'PROCESSING'" class="badge bg-warning text-dark">Processing</span>
+                <span th:case="'COMPLETED'"  class="badge bg-success">Completed</span>
+                <span th:case="'FAILED'"     class="badge bg-danger">Failed</span>
+                <span th:case="'VALIDATED'"  class="badge bg-primary">Validated</span>
+              </span>
+            </td>
+
+            <td class="align-middle">
+              <span th:if="${inv.totalAmount != null}"
+                    th:text="'Rs. ' + ${#numbers.formatDecimal(inv.totalAmount, 0, 'COMMA', 2, 'POINT')}"></span>
+              <span th:unless="${inv.totalAmount != null}" class="text-muted">-</span>
+            </td>
+
+            <td class="align-middle">
+              <span th:if="${inv.isApplied}"  class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Applied</span>
+              <span th:unless="${inv.isApplied}" class="badge bg-secondary">Pending</span>
+            </td>
+
+            <td class="align-middle">
+              <small th:text="${#temporals.format(inv.createdAt, 'dd MMM yyyy')}"></small>
+              <small class="d-block text-muted" th:text="${#temporals.format(inv.createdAt, 'HH:mm')}"></small>
+            </td>
+
+            <td class="align-middle">
+              <div class="d-flex gap-1">
+                <a th:href="@{'/ocr/view/' + ${inv.id}}"
+                   class="btn btn-sm btn-outline-info" title="View">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <button th:if="${!inv.isApplied}"
+                        type="button"
+                        class="btn btn-sm btn-outline-danger delete-btn"
+                        th:data-id="${inv.id}"
+                        title="Delete"
+                        sec:authorize="hasRole('ADMIN')">
+                  <i class="bi bi-trash"></i>
+                </button>
+                <span th:if="${inv.isApplied}"
+                      class="btn btn-sm btn-outline-secondary"
+                      style="cursor:not-allowed;opacity:.5;"
+                      title="Cannot delete — already applied">
+                  <i class="bi bi-lock"></i>
+                </span>
+              </div>
+              <form th:if="${!inv.isApplied}"
+                    th:id="'deleteForm-' + ${inv.id}"
+                    th:action="@{'/ocr/delete/' + ${inv.id}}"
+                    method="post"
+                    style="display:none;"
+                    sec:authorize="hasRole('ADMIN')"></form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer d-flex justify-content-between align-items-center"
+         th:if="${invoices.totalPages > 1}">
+      <small class="text-muted" th:text="${invoices.totalElements} + ' total invoices'"></small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li th:classappend="${invoices.first} ? 'page-item disabled' : 'page-item'">
+            <a class="page-link" th:href="@{/ocr(page=${invoices.number - 1})}">«</a>
+          </li>
+          <li th:each="i : ${#numbers.sequence(0, invoices.totalPages - 1)}"
+              th:if="${i >= invoices.number - 2 and i <= invoices.number + 2}"
+              th:classappend="${i == invoices.number} ? 'page-item active' : 'page-item'">
+            <a class="page-link" th:href="@{/ocr(page=${i})}" th:text="${i + 1}">1</a>
+          </li>
+          <li th:classappend="${invoices.last} ? 'page-item disabled' : 'page-item'">
+            <a class="page-link" th:href="@{/ocr(page=${invoices.number + 1})}">»</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</div>
+
+</th:block>
+<th:block th:fragment="scripts">
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.delete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.getAttribute('data-id');
+      if (confirm('Delete Invoice #' + id + '?\nThis cannot be undone.')) {
+        var form = document.getElementById('deleteForm-' + id);
+        if (form) form.submit();
+      }
+    });
+  });
+
+  var applied = 0, pending = 0, pdfs = 0, imgs = 0;
+  document.querySelectorAll('#invoiceTable tbody tr[data-applied]').forEach(function(r) {
+    if (r.getAttribute('data-applied') === 'true') applied++; else pending++;
+    if (r.getAttribute('data-type') === 'PDF') pdfs++; else imgs++;
+  });
+  function $s(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  $s('appliedCount', applied);
+  $s('pendingCount', pending);
+  $s('pdfCount',     pdfs);
+  $s('imageCount',   imgs);
+});
+</script>
+</th:block>
+</html>

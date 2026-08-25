@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Forecast: <span th:text="${product.name}">Product</span></h4>
+  <a th:href="@{/forecasting}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<div class="card mb-3">
+  <div class="card-body"><canvas id="forecastChart" height="80"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-header">Forecast Data</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Date</th><th>Predicted Demand</th><th>Lower</th><th>Upper</th></tr></thead>
+      <tbody>
+        <tr th:each="f : ${forecastResults}">
+          <td th:text="${f.forecastDate}"></td>
+          <td><strong th:text="${f.predictedDemand}"></strong></td>
+          <td th:text="${f.confidenceLower}"></td>
+          <td th:text="${f.confidenceUpper}"></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(forecastResults)}">
+          <td colspan="4" class="text-center text-muted py-3">No forecast data. <a th:href="@{/forecasting}">Generate one.</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts">
+<script th:inline="javascript">
+const results = [[${forecastResults}]];
+if (results && results.length > 0) {
+  new Chart(document.getElementById('forecastChart'), {
+    type: 'line',
+    data: {
+      labels: results.map(r => r.forecastDate),
+      datasets: [{ label: 'Predicted Demand', data: results.map(r => r.predictedDemand), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.4 }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+  });
+}
+</script>
+</th:block>
+</html>

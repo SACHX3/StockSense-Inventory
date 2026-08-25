@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div class="page-header">
+  <h4><i class="bi bi-file-earmark-text me-2 text-primary"></i>Invoice #<span th:text="${invoice.id}"></span></h4>
+  <div class="d-flex gap-2">
+    <!-- Process OCR button -->
+    <button class="btn btn-primary btn-sm" onclick="processOCR()"
+            th:if="${invoice.ocrStatus.name() == 'PENDING' or invoice.ocrStatus.name() == 'FAILED'}">
+      <i class="bi bi-cpu me-1"></i>Process OCR
+    </button>
+    <!-- Re-process button -->
+    <button class="btn btn-outline-primary btn-sm" onclick="processOCR()"
+            th:if="${invoice.ocrStatus.name() == 'COMPLETED' and !invoice.isApplied}">
+      <i class="bi bi-arrow-clockwise me-1"></i>Re-process OCR
+    </button>
+    <!-- Validate All button -->
+    <button class="btn btn-warning btn-sm" onclick="validateAll()"
+            th:if="${invoice.ocrStatus.name() == 'COMPLETED' and !invoice.isApplied and not #lists.isEmpty(items)}">
+      <i class="bi bi-check-all me-1"></i>Validate All Items
+    </button>
+    <!-- Apply to Inventory button -->
+    <button class="btn btn-success btn-sm" onclick="applyToInventory()"
+            th:if="${invoice.ocrStatus.name() == 'COMPLETED' and !invoice.isApplied and not #lists.isEmpty(items)}">
+      <i class="bi bi-database-add me-1"></i>Apply to Inventory
+    </button>
+    <a th:href="@{/ocr}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+</div>
+
+<!-- Status alert area -->
+<div id="statusAlert" class="mb-3"></div>
+
+<!-- Applied banner -->
+<div th:if="${invoice.isApplied}" class="alert alert-success mb-3">
+  <i class="bi bi-check-circle-fill me-2"></i>
+  <strong>Invoice Applied!</strong> Stock was updated on
+  <span th:text="${invoice.appliedAt != null ? #temporals.format(invoice.appliedAt, 'dd MMM yyyy HH:mm') : 'N/A'}"></span>
+</div>
+
+<div class="row g-3">
+  <!-- LEFT: Invoice Info -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle me-2"></i>Invoice Info</div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless mb-0">
+          <tr>
+            <td class="fw-600" style="width:40%;">Status:</td>
+            <td>
+              <span th:switch="${invoice.ocrStatus.name()}">
+                <span th:case="'PENDING'"    class="badge bg-secondary">Pending</span>
+                <span th:case="'PROCESSING'" class="badge bg-warning text-dark">Processing...</span>
+                <span th:case="'COMPLETED'"  class="badge bg-success">Completed</span>
+                <span th:case="'FAILED'"     class="badge bg-danger">Failed</span>
+                <span th:case="'VALIDATED'"  class="badge bg-primary">Validated</span>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td class="fw-600">File Type:</td>
+            <td><span class="badge bg-info text-dark" th:text="${invoice.fileType}"></span></td>
+          </tr>
+          <tr>
+            <td class="fw-600">Supplier:</td>
+            <td th:text="${invoice.supplier != null ? invoice.supplier.name : '-'}"></td>
+          </tr>
+          <tr>
+            <td class="fw-600">Invoice #:</td>
+            <td th:text="${invoice.invoiceNumber ?: '-'}"></td>
+          </tr>
+          <tr>
+            <td class="fw-600">Applied:</td>
+            <td>
+              <span th:classappend="${invoice.isApplied} ? 'badge bg-success' : 'badge bg-secondary'"
+                    th:text="${invoice.isApplied} ? 'Yes ✓' : 'No'"></span>
+            </td>
+          </tr>
+          <tr>
+            <td class="fw-600">Items:</td>
+            <td><span class="badge bg-primary" th:text="${#lists.size(items)}">0</span></td>
+          </tr>
+          <tr>
+            <td class="fw-600">Uploaded:</td>
+            <td style="font-size:.82rem;" th:text="${#temporals.format(invoice.createdAt, 'dd MMM yyyy HH:mm')}"></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Workflow Guide -->
+    <div class="card mt-3" th:if="${!invoice.isApplied and invoice.ocrStatus.name() == 'COMPLETED'}">
+      <div class="card-header"><i class="bi bi-lightning me-2 text-warning"></i>How to Apply</div>
+      <div class="card-body">
+        <ol class="mb-0" style="font-size:.85rem; padding-left:1.2rem;">
+          <li class="mb-2">Review extracted items below</li>
+          <li class="mb-2">Edit any wrong quantities or match products</li>
+          <li class="mb-2">Click <strong>"Validate All Items"</strong> to mark them ready</li>
+          <li>Click <strong>"Apply to Inventory"</strong> to update stock</li>
+        </ol>
+        <div class="alert alert-info mt-3 mb-0 py-2" style="font-size:.8rem;">
+          <i class="bi bi-info-circle me-1"></i>
+          You can also click <strong>Apply to Inventory</strong> directly — it will auto-validate and apply all items.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Extracted Items -->
+  <div class="col-md-8">
+    <!-- Raw OCR Text (collapsible) -->
+    <div class="card mb-3" th:if="${invoice.rawOcrText}">
+      <div class="card-header d-flex justify-content-between align-items-center"
+           style="cursor:pointer;" onclick="toggleRaw()">
+        <span><i class="bi bi-file-text me-2"></i>Raw OCR Text</span>
+        <i class="bi bi-chevron-down" id="rawChevron"></i>
+      </div>
+      <div class="card-body p-0" id="rawTextBody" style="display:none;">
+        <pre style="font-size:.78rem;max-height:180px;overflow-y:auto;padding:12px;margin:0;"
+             th:text="${invoice.rawOcrText}"></pre>
+      </div>
+    </div>
+
+    <!-- Extracted Items Table -->
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i>Extracted Items</span>
+        <div th:if="${!invoice.isApplied and not #lists.isEmpty(items)}">
+          <small class="text-muted me-2">
+            <span id="validatedCount">0</span>/<span th:text="${#lists.size(items)}">0</span> validated
+          </small>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div th:if="${#lists.isEmpty(items)}" class="p-4 text-center text-muted">
+          <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+          No items extracted yet.
+          <span th:if="${invoice.ocrStatus.name() == 'PENDING'}">
+            Click <strong>"Process OCR"</strong> to extract data.
+          </span>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(items)}" class="table-responsive">
+          <table class="table table-sm mb-0" id="itemsTable">
+            <thead>
+              <tr>
+                <th style="width:30px;">
+                  <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"
+                         th:if="${!invoice.isApplied}"/>
+                </th>
+                <th>Product Name</th>
+                <th style="width:70px;">Qty</th>
+                <th style="width:110px;">Unit Price</th>
+                <th style="width:110px;">Total</th>
+                <th style="width:80px;">Confidence</th>
+                <th style="width:90px;">Validated</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="item : ${items}" th:id="'row-' + ${item.id}"
+                  th:classappend="${item.isValidated} ? 'table-success' : ''">
+                <!-- Checkbox -->
+                <td>
+                  <input type="checkbox" th:if="${!invoice.isApplied}"
+                         th:id="'chk-' + ${item.id}"
+                         th:checked="${item.isValidated}"
+                         th:data-item-id="${item.id}"
+                         class="item-checkbox"
+                         onchange="toggleValidate(this)"/>
+                  <i th:unless="${!invoice.isApplied}"
+                     th:classappend="${item.isValidated} ? 'bi bi-check-circle-fill text-success' : 'bi bi-x-circle text-secondary'"></i>
+                </td>
+                <!-- Product Name (editable) -->
+                <td>
+                  <div th:if="${!invoice.isApplied}">
+                    <input type="text"
+                           th:id="'name-' + ${item.id}"
+                           th:value="${item.productName ?: (item.product != null ? item.product.name : '')}"
+                           class="form-control form-control-sm"
+                           style="min-width:160px;"
+                           placeholder="Product name"/>
+                    <small th:if="${item.product != null}" class="text-success">
+                      <i class="bi bi-link me-1"></i>Linked: <span th:text="${item.product.name}"></span>
+                    </small>
+                  </div>
+                  <span th:unless="${!invoice.isApplied}"
+                        th:text="${item.productName ?: (item.product != null ? item.product.name : 'Unknown')}">Name</span>
+                </td>
+                <!-- Qty (editable) -->
+                <td>
+                  <input th:if="${!invoice.isApplied}"
+                         type="number" min="1"
+                         th:id="'qty-' + ${item.id}"
+                         th:value="${item.quantity ?: 1}"
+                         class="form-control form-control-sm" style="width:65px;"/>
+                  <span th:unless="${!invoice.isApplied}" th:text="${item.quantity}">0</span>
+                </td>
+                <!-- Unit Price -->
+                <td th:text="${item.unitPrice != null ? 'Rs. ' + #numbers.formatDecimal(item.unitPrice, 1, 'COMMA', 2, 'POINT') : '-'}">-</td>
+                <!-- Total -->
+                <td th:text="${item.totalPrice != null ? 'Rs. ' + #numbers.formatDecimal(item.totalPrice, 1, 'COMMA', 2, 'POINT') : '-'}">-</td>
+                <!-- Confidence -->
+                <td>
+                  <span th:if="${item.confidenceScore != null}"
+                        th:classappend="${item.confidenceScore.doubleValue() > 85} ? 'badge bg-success' : (${item.confidenceScore.doubleValue() > 60} ? 'badge bg-warning text-dark' : 'badge bg-danger')"
+                        th:text="${#numbers.formatDecimal(item.confidenceScore, 0, 0)} + '%'"></span>
+                  <span th:unless="${item.confidenceScore != null}" class="text-muted">-</span>
+                </td>
+                <!-- Validated -->
+                <td>
+                  <span th:id="'badge-' + ${item.id}"
+                        th:classappend="${item.isValidated} ? 'badge bg-success' : 'badge bg-secondary'"
+                        th:text="${item.isValidated} ? '✓ Yes' : 'No'"></span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div th:if="${!invoice.isApplied and not #lists.isEmpty(items)}"
+             class="p-3 border-top d-flex gap-2 flex-wrap">
+          <button class="btn btn-warning btn-sm" onclick="validateAll()">
+            <i class="bi bi-check-all me-1"></i>Validate All
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="saveEdits()">
+            <i class="bi bi-save me-1"></i>Save Edits
+          </button>
+          <button class="btn btn-success" onclick="applyToInventory()">
+            <i class="bi bi-database-add me-2"></i>Apply to Inventory
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</th:block>
+<th:block th:fragment="scripts">
+<script th:inline="javascript">
+/*<![CDATA[*/
+const invoiceId = /*[[${invoice.id}]]*/ 0;
+const isApplied = /*[[${invoice.isApplied}]]*/ false;
+
+// ── UI Helpers ─────────────────────────────────────────────────────────
+function showAlert(msg, type) {
+  document.getElementById('statusAlert').innerHTML =
+    `<div class="alert alert-${type} alert-dismissible fade show">
+      <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+      ${msg}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+}
+
+function toggleRaw() {
+  const body = document.getElementById('rawTextBody');
+  const icon = document.getElementById('rawChevron');
+  if (body.style.display === 'none') {
+    body.style.display = 'block'; icon.className = 'bi bi-chevron-up';
+  } else {
+    body.style.display = 'none'; icon.className = 'bi bi-chevron-down';
+  }
+}
+
+function updateValidatedCount() {
+  const total = document.querySelectorAll('.item-checkbox').length;
+  const checked = document.querySelectorAll('.item-checkbox:checked').length;
+  const counter = document.getElementById('validatedCount');
+  if (counter) counter.textContent = checked;
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.item-checkbox').forEach(c => {
+    c.checked = cb.checked;
+    updateRowStyle(c);
+  });
+  updateValidatedCount();
+}
+
+function toggleValidate(cb) {
+  updateRowStyle(cb);
+  updateValidatedCount();
+  const selectAll = document.getElementById('selectAll');
+  if (selectAll) {
+    const all = document.querySelectorAll('.item-checkbox');
+    const checked = document.querySelectorAll('.item-checkbox:checked');
+    selectAll.checked = all.length === checked.length;
+  }
+}
+
+function updateRowStyle(cb) {
+  const itemId = cb.getAttribute('data-item-id');
+  const row = document.getElementById('row-' + itemId);
+  const badge = document.getElementById('badge-' + itemId);
+  if (row) row.classList.toggle('table-success', cb.checked);
+  if (badge) {
+    badge.textContent = cb.checked ? '✓ Yes' : 'No';
+    badge.className = cb.checked ? 'badge bg-success' : 'badge bg-secondary';
+  }
+}
+
+// ── Validate All ────────────────────────────────────────────────────────
+function validateAll() {
+  document.querySelectorAll('.item-checkbox').forEach(cb => {
+    cb.checked = true;
+    updateRowStyle(cb);
+  });
+  updateValidatedCount();
+  const sa = document.getElementById('selectAll');
+  if (sa) sa.checked = true;
+  showAlert('All items marked as validated. Click <strong>Apply to Inventory</strong> to update stock.', 'info');
+}
+
+// ── Save Edits ──────────────────────────────────────────────────────────
+async function saveEdits() {
+  const checkboxes = document.querySelectorAll('.item-checkbox');
+  const promises = [];
+
+  checkboxes.forEach(cb => {
+    const itemId = cb.getAttribute('data-item-id');
+    const nameEl = document.getElementById('name-' + itemId);
+    const qtyEl  = document.getElementById('qty-' + itemId);
+
+    const payload = {
+      isValidated: cb.checked,
+      productName: nameEl ? nameEl.value : null,
+      quantity: qtyEl ? parseInt(qtyEl.value) : null
+    };
+
+    promises.push(
+      fetch('/ocr/api/validate-item/' + itemId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(r => r.json())
+    );
+  });
+
+  try {
+    const results = await Promise.all(promises);
+    const allOk = results.every(r => r.success);
+    showAlert(allOk ? 'Changes saved successfully!' : 'Some items had errors saving.', allOk ? 'success' : 'warning');
+  } catch (e) {
+    showAlert('Error saving: ' + e.message, 'danger');
+  }
+}
+
+// ── Process OCR ─────────────────────────────────────────────────────────
+function processOCR() {
+  showAlert('<span class="spinner-border spinner-border-sm me-2"></span>Processing OCR... please wait.', 'info');
+  fetch('/ocr/api/process/' + invoiceId, { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showAlert('OCR complete! Refreshing page...', 'success');
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showAlert('OCR message: ' + (res.message || res.error || 'Unknown error'), 'warning');
+      }
+    })
+    .catch(e => showAlert('Error: ' + e.message, 'danger'));
+}
+
+// ── Apply to Inventory ──────────────────────────────────────────────────
+async function applyToInventory() {
+  const checked = document.querySelectorAll('.item-checkbox:checked');
+  const total   = document.querySelectorAll('.item-checkbox');
+
+  // If nothing checked, auto-validate all first
+  if (checked.length === 0 && total.length > 0) {
+    validateAll();
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  if (!confirm('Apply all items to inventory stock?\n\nThis will increase stock quantities and cannot be undone.')) return;
+
+  showAlert('<span class="spinner-border spinner-border-sm me-2"></span>Saving edits and applying to inventory...', 'info');
+
+  // Step 1: Save all edits (validate all checked items)
+  const savePromises = [];
+  document.querySelectorAll('.item-checkbox').forEach(cb => {
+    const itemId = cb.getAttribute('data-item-id');
+    const nameEl = document.getElementById('name-' + itemId);
+    const qtyEl  = document.getElementById('qty-' + itemId);
+    savePromises.push(
+      fetch('/ocr/api/validate-item/' + itemId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isValidated: true,  // always validate on apply
+          productName: nameEl ? nameEl.value : null,
+          quantity: qtyEl ? parseInt(qtyEl.value) : null
+        })
+      }).then(r => r.json()).catch(() => ({ success: false }))
+    );
+  });
+
+  try {
+    await Promise.all(savePromises);
+  } catch (e) {
+    console.warn('Save edits warning:', e);
+  }
+
+  // Step 2: Apply to inventory
+  fetch('/ocr/api/apply/' + invoiceId, { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        const count = res.data ? res.data.applied_items || res.data.appliedItems || '?' : '?';
+        showAlert(`✅ <strong>Success!</strong> ${count} item(s) added to inventory stock. Refreshing...`, 'success');
+        setTimeout(() => location.reload(), 2000);
+      } else {
+        showAlert('Apply failed: ' + (res.message || res.error), 'danger');
+      }
+    })
+    .catch(e => showAlert('Error: ' + e.message, 'danger'));
+}
+
+// ── Init ────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  updateValidatedCount();
+});
+/*]]>*/
+</script>
+</th:block>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-upload me-2 text-primary"></i>Upload Invoice for OCR</h4>
+  <a th:href="@{/ocr}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Invoice Upload</div>
+      <div class="card-body">
+        <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Supported formats: JPG, PNG, PDF (Max 10MB). Best results with clear, well-lit images.</div>
+        <form th:action="@{/ocr/upload}" method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">Invoice File *</label>
+            <input type="file" name="file" class="form-control" accept="image/*,.pdf" required
+                   onchange="previewFile(this)"/>
+          </div>
+          <div id="filePreview" class="mb-3" style="display:none;">
+            <img id="imgPreview" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;"/>
+            <div id="pdfPreview" class="p-3 bg-light rounded"><i class="bi bi-file-pdf text-danger me-2" style="font-size:2rem;"></i><span id="pdfName"></span></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Supplier (Optional)</label>
+            <select name="supplierId" class="form-select">
+              <option value="">-- Select Supplier --</option>
+              <option th:each="s : ${suppliers}" th:value="${s.id}" th:text="${s.name}">Supplier</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Invoice Number (Optional)</label>
+            <input type="text" name="invoiceNumber" class="form-control" placeholder="e.g. INV-2024-001"/>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-upload me-1"></i>Upload Invoice</button>
+            <a th:href="@{/ocr}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts">
+<script>
+function previewFile(input) {
+  const preview = document.getElementById('filePreview');
+  const img = document.getElementById('imgPreview');
+  const pdf = document.getElementById('pdfPreview');
+  const pdfName = document.getElementById('pdfName');
+  const file = input.files[0];
+  if (!file) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+  if (file.type.includes('pdf')) {
+    img.style.display = 'none'; pdf.style.display = 'block';
+    pdfName.textContent = file.name;
+  } else {
+    pdf.style.display = 'none'; img.style.display = 'block';
+    img.src = URL.createObjectURL(file);
+  }
+}
+</script>
+</th:block>
+</html>
