@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-receipt me-2 text-primary"></i>Sales History</h4>
+  <a th:href="@{/sales/create}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Sale</a>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Invoice #</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+      <tbody>
+        <tr th:if="${sales.isEmpty()}"><td colspan="8" class="text-center py-4 text-muted">No sales found.</td></tr>
+        <tr th:each="s : ${sales.content}">
+          <td><code th:text="${s.invoiceNumber}">INV</code></td>
+          <td th:text="${s.customerName ?: 'Walk-in'}">Customer</td>
+          <td><span class="badge bg-light text-dark border" th:text="${#lists.size(s.items)} + ' items'">0</span></td>
+          <td class="fw-600 text-success" th:text="'Rs. ' + ${#numbers.formatDecimal(s.totalAmount, 0, 'COMMA', 2, 'POINT')}">0</td>
+          <td><span class="badge bg-light text-dark border" th:text="${s.paymentMethod}">CASH</span></td>
+          <td><span th:classappend="${s.paymentStatus.name() == 'PAID'} ? 'badge bg-success' : 'badge bg-warning text-dark'"
+                    th:text="${s.paymentStatus}">PAID</span></td>
+          <td><small th:text="${#temporals.format(s.createdAt, 'dd MMM yyyy HH:mm')}">date</small></td>
+          <td>
+            <div class="d-flex gap-1">
+              <a th:href="@{'/sales/view/' + ${s.id}}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+              <a th:href="@{'/sales/receipt/' + ${s.id}}" class="btn btn-sm btn-outline-secondary" target="_blank"><i class="bi bi-printer"></i></a>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer d-flex justify-content-between" th:if="${sales.totalPages > 1}">
+    <small class="text-muted" th:text="${sales.totalElements} + ' total sales'"></small>
+    <nav><ul class="pagination pagination-sm mb-0">
+      <li th:classappend="${sales.first} ? 'page-item disabled' : 'page-item'">
+        <a class="page-link" th:href="@{/sales(page=${sales.number - 1})}">«</a></li>
+      <li th:classappend="${sales.last} ? 'page-item disabled' : 'page-item'">
+        <a class="page-link" th:href="@{/sales(page=${sales.number + 1})}">»</a></li>
+    </ul></nav>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>

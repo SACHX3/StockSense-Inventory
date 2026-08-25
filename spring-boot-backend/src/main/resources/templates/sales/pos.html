@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div class="page-header">
+  <h4><i class="bi bi-cart-plus me-2 text-primary"></i>New Sale (POS)</h4>
+  <a th:href="@{/sales}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Sales History
+  </a>
+</div>
+
+<div class="row g-3">
+  <!-- LEFT: Product Search + Cart -->
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-search me-2"></i>Search &amp; Add Products</div>
+      <div class="card-body">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" id="productSearch" class="form-control"
+                 placeholder="Type product name or SKU..."
+                 autocomplete="off" oninput="searchProducts(this.value)"/>
+          <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <div id="searchResults" class="mt-2" style="max-height:280px;overflow-y:auto;border-radius:7px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cart me-2"></i>Cart Items <span id="cartBadge" class="badge bg-primary ms-1">0</span></span>
+        <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">
+          <i class="bi bi-trash me-1"></i>Clear
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0" id="cartTable">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Price</th>
+              <th style="width:100px;">Qty</th>
+              <th>Total</th>
+              <th style="width:40px;"></th>
+            </tr>
+          </thead>
+          <tbody id="cartBody">
+            <tr id="emptyRow">
+              <td colspan="5" class="text-center text-muted py-4">
+                <i class="bi bi-cart fs-2 d-block mb-2 text-secondary"></i>
+                Search and add products above
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Order Summary -->
+  <div class="col-lg-5">
+    <div class="card" style="position:sticky;top:75px;">
+      <div class="card-header"><i class="bi bi-receipt me-2"></i>Order Summary</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">Customer Name</label>
+          <input type="text" id="customerName" class="form-control"
+                 placeholder="Walk-in Customer"/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Customer Phone</label>
+          <input type="text" id="customerPhone" class="form-control"
+                 placeholder="+94 xx xxx xxxx"/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Payment Method</label>
+          <select id="paymentMethod" class="form-select">
+            <option value="CASH">💵 Cash</option>
+            <option value="CARD">💳 Card</option>
+            <option value="BANK_TRANSFER">🏦 Bank Transfer</option>
+            <option value="CREDIT">📋 Credit</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Discount (Rs.)</label>
+          <input type="number" id="discountAmount" class="form-control"
+                 value="0" min="0" oninput="updateTotals()"/>
+        </div>
+        <hr/>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Subtotal:</span>
+          <strong id="subtotalDisplay">Rs. 0.00</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Discount:</span>
+          <span id="discountDisplay" class="text-danger">- Rs. 0.00</span>
+        </div>
+        <hr/>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="fw-700 fs-5">Total:</span>
+          <span id="totalDisplay" class="fw-700 fs-5 text-primary">Rs. 0.00</span>
+        </div>
+        <button class="btn btn-success w-100 btn-lg" onclick="processSale()" id="processSaleBtn">
+          <i class="bi bi-check-circle me-2"></i>Process Sale
+        </button>
+        <div id="saleMsg" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden product data - JSON embedded safely -->
+<script th:inline="javascript">
+/*<![CDATA[*/
+var PRODUCTS = [];
+/*[- var rawProducts = ${products}; -]*/
+</script>
+
+<!-- Product data divs - one per product -->
+<div id="productDataContainer" style="display:none;">
+  <div th:each="p : ${products}"
+       class="pd"
+       th:data-id="${p.id}"
+       th:data-name="${p.name}"
+       th:data-sku="${p.sku}"
+       th:data-price="${p.sellingPrice}"
+       th:data-stock="${p.quantity}"
+       th:data-unit="${p.unit}">
+  </div>
+</div>
+
+</th:block>
+
+<th:block th:fragment="scripts">
+<script>
+// ── Load products from DOM data attributes ──────────────────────────────
+var PRODUCTS = [];
+document.querySelectorAll('#productDataContainer .pd').forEach(function(el) {
+  var price = parseFloat(el.getAttribute('data-price') || '0');
+  var stock = parseInt(el.getAttribute('data-stock') || '0');
+  if (!isNaN(price) && price >= 0) {
+    PRODUCTS.push({
+      id:    parseInt(el.getAttribute('data-id')),
+      name:  el.getAttribute('data-name') || '',
+      sku:   el.getAttribute('data-sku')  || '',
+      price: price,
+      stock: stock,
+      unit:  el.getAttribute('data-unit') || 'pcs'
+    });
+  }
+});
+console.log('Products loaded:', PRODUCTS.length);
+
+// ── Cart state ───────────────────────────────────────────────────────────
+var cart = [];
+
+// ── Search ───────────────────────────────────────────────────────────────
+function searchProducts(q) {
+  var div = document.getElementById('searchResults');
+  q = (q || '').trim().toLowerCase();
+  if (!q) { div.innerHTML = ''; return; }
+
+  var matches = PRODUCTS.filter(function(p) {
+    return p.name.toLowerCase().indexOf(q) >= 0 ||
+           p.sku.toLowerCase().indexOf(q) >= 0;
+  }).slice(0, 10);
+
+  if (!matches.length) {
+    div.innerHTML = '<div class="p-2 text-muted text-center">No products found for "' + q + '"</div>';
+    return;
+  }
+
+  var html = matches.map(function(p) {
+    var stockBadge = p.stock <= 0
+      ? '<span class="badge bg-danger">Out of stock</span>'
+      : '<span class="badge bg-success">' + p.stock + ' ' + p.unit + '</span>';
+    var disabled = p.stock <= 0 ? 'disabled' : '';
+    return '<div class="d-flex justify-content-between align-items-center p-2 border-bottom ' +
+           (disabled ? 'opacity-50' : 'search-item') +
+           '" style="cursor:' + (disabled ? 'not-allowed' : 'pointer') + ';"' +
+           (disabled ? '' : ' onclick="addProduct(' + p.id + ')"') + '>' +
+           '<div><div class="fw-600" style="font-size:.88rem;">' + escapeHtml(p.name) + '</div>' +
+           '<small class="text-muted">SKU: ' + escapeHtml(p.sku) + ' | ' + stockBadge + '</small></div>' +
+           '<div class="fw-600 text-primary">Rs. ' + p.price.toFixed(2) + '</div>' +
+           '</div>';
+  }).join('');
+
+  div.innerHTML = '<div class="border rounded">' + html + '</div>';
+}
+
+function clearSearch() {
+  document.getElementById('productSearch').value = '';
+  document.getElementById('searchResults').innerHTML = '';
+}
+
+// ── Cart operations ───────────────────────────────────────────────────────
+function addProduct(id) {
+  var product = PRODUCTS.find(function(p) { return p.id === id; });
+  if (!product) return;
+  if (product.stock <= 0) { showMsg('Out of stock!', 'warning'); return; }
+
+  var existing = cart.find(function(i) { return i.id === id; });
+  if (existing) {
+    if (existing.qty >= product.stock) {
+      showMsg('Max stock reached: ' + product.stock + ' ' + product.unit, 'warning');
+      return;
+    }
+    existing.qty++;
+    existing.total = parseFloat((existing.qty * existing.price).toFixed(2));
+  } else {
+    cart.push({
+      id: product.id, name: product.name, sku: product.sku,
+      price: product.price, stock: product.stock, unit: product.unit,
+      qty: 1, total: product.price
+    });
+  }
+  clearSearch();
+  renderCart();
+}
+
+function removeItem(id) {
+  cart = cart.filter(function(i) { return i.id !== id; });
+  renderCart();
+}
+
+function updateQty(id, val) {
+  var item = cart.find(function(i) { return i.id === id; });
+  if (!item) return;
+  var qty = parseInt(val);
+  if (isNaN(qty) || qty <= 0) { removeItem(id); return; }
+  if (qty > item.stock) { qty = item.stock; }
+  item.qty = qty;
+  item.total = parseFloat((item.qty * item.price).toFixed(2));
+  updateTotals();
+}
+
+function clearCart() {
+  cart = [];
+  renderCart();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function renderCart() {
+  var tbody = document.getElementById('cartBody');
+  document.getElementById('cartBadge').textContent = cart.length;
+
+  if (!cart.length) {
+    tbody.innerHTML = '<tr id="emptyRow"><td colspan="5" class="text-center text-muted py-4">' +
+      '<i class="bi bi-cart fs-2 d-block mb-2 text-secondary"></i>Search and add products above</td></tr>';
+    updateTotals();
+    return;
+  }
+
+  var rows = cart.map(function(item) {
+    return '<tr>' +
+      '<td><div class="fw-600" style="font-size:.85rem;">' + escapeHtml(item.name) + '</div>' +
+      '<small class="text-muted">' + escapeHtml(item.sku) + '</small></td>' +
+      '<td>Rs. ' + item.price.toFixed(2) + '</td>' +
+      '<td><input type="number" min="1" max="' + item.stock + '" value="' + item.qty + '" ' +
+      'class="form-control form-control-sm" style="width:70px;" ' +
+      'onchange="updateQty(' + item.id + ', this.value)"/></td>' +
+      '<td class="fw-600">Rs. ' + item.total.toFixed(2) + '</td>' +
+      '<td><button class="btn btn-sm btn-outline-danger" onclick="removeItem(' + item.id + ')">' +
+      '<i class="bi bi-x"></i></button></td></tr>';
+  }).join('');
+
+  tbody.innerHTML = rows;
+  updateTotals();
+}
+
+function updateTotals() {
+  var subtotal = cart.reduce(function(s, i) { return s + i.total; }, 0);
+  var discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+  var total = Math.max(0, subtotal - discount);
+
+  document.getElementById('subtotalDisplay').textContent = 'Rs. ' + subtotal.toFixed(2);
+  document.getElementById('discountDisplay').textContent  = '- Rs. ' + discount.toFixed(2);
+  document.getElementById('totalDisplay').textContent     = 'Rs. ' + total.toFixed(2);
+}
+
+// ── Process Sale ──────────────────────────────────────────────────────────
+function processSale() {
+  if (!cart.length) { showMsg('Add at least one product to cart!', 'danger'); return; }
+
+  var btn = document.getElementById('processSaleBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+  var payload = {
+    customerName:   document.getElementById('customerName').value || 'Walk-in Customer',
+    customerPhone:  document.getElementById('customerPhone').value || '',
+    paymentMethod:  document.getElementById('paymentMethod').value,
+    discountAmount: parseFloat(document.getElementById('discountAmount').value) || 0,
+    items: cart.map(function(i) {
+      return { productId: i.id, quantity: i.qty, unitPrice: i.price, discountPercent: 0 };
+    })
+  };
+
+  fetch('/sales/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Process Sale';
+    if (res.success) {
+      var saleId = res.data ? res.data.id : '';
+      var receiptLink = saleId ? ' <a href="/sales/receipt/' + saleId + '" target="_blank" class="alert-link">Print Receipt</a>' : '';
+      showMsg('✅ Sale processed successfully!' + receiptLink, 'success');
+      cart = [];
+      renderCart();
+      document.getElementById('customerName').value  = '';
+      document.getElementById('customerPhone').value = '';
+      document.getElementById('discountAmount').value = '0';
+      updateTotals();
+    } else {
+      showMsg('❌ ' + (res.message || 'Sale failed'), 'danger');
+    }
+  })
+  .catch(function(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Process Sale';
+    showMsg('❌ Error: ' + e.message, 'danger');
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function showMsg(msg, type) {
+  var div = document.getElementById('saleMsg');
+  div.innerHTML = '<div class="alert alert-' + type + ' py-2 mt-2">' + msg + '</div>';
+  setTimeout(function() { if (type === 'success') div.innerHTML = ''; }, 5000);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Style for hover ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('productDataContainer').remove();
+  console.log('POS ready. Products:', PRODUCTS.length);
+});
+</script>
+
+<style>
+.search-item:hover { background: #f0f4ff; }
+.fw-600 { font-weight: 600; }
+</style>
+</th:block>
+</html>

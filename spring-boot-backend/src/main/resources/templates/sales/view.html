@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+<div class="page-header">
+  <h4><i class="bi bi-receipt me-2 text-primary"></i>Sale Details - <span th:text="${sale.invoiceNumber}"></span></h4>
+  <div class="d-flex gap-2">
+    <a th:href="@{'/sales/receipt/' + ${sale.id}}" class="btn btn-outline-secondary btn-sm" target="_blank"><i class="bi bi-printer me-1"></i>Print</a>
+    <a th:href="@{/sales}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">Sale Info</div>
+      <div class="card-body">
+        <p><strong>Invoice:</strong> <code th:text="${sale.invoiceNumber}"></code></p>
+        <p><strong>Customer:</strong> <span th:text="${sale.customerName ?: 'Walk-in'}"></span></p>
+        <p><strong>Phone:</strong> <span th:text="${sale.customerPhone ?: '-'}"></span></p>
+        <p><strong>Payment:</strong> <span class="badge bg-light text-dark border" th:text="${sale.paymentMethod}"></span></p>
+        <p><strong>Status:</strong>
+          <span th:classappend="${sale.paymentStatus.name() == 'PAID'} ? 'badge bg-success' : 'badge bg-warning text-dark'"
+                th:text="${sale.paymentStatus}"></span></p>
+        <p><strong>Date:</strong> <span th:text="${#temporals.format(sale.createdAt, 'dd MMM yyyy HH:mm')}"></span></p>
+        <p><strong>Cashier:</strong> <span th:text="${sale.user != null ? sale.user.fullName : '-'}"></span></p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">Items</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>Product</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr></thead>
+          <tbody>
+            <tr th:each="item : ${sale.items}">
+              <td th:text="${item.product.name}">Product</td>
+              <td th:text="'Rs. ' + ${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 2, 'POINT')}">0</td>
+              <td th:text="${item.quantity}">0</td>
+              <td class="fw-600" th:text="'Rs. ' + ${#numbers.formatDecimal(item.totalPrice, 0, 'COMMA', 2, 'POINT')}">0</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3" class="text-end">Subtotal:</td><td th:text="'Rs. ' + ${#numbers.formatDecimal(sale.subtotal, 0, 'COMMA', 2, 'POINT')}"></td></tr>
+            <tr th:if="${sale.discountAmount.compareTo(T(java.math.BigDecimal).ZERO) > 0}">
+              <td colspan="3" class="text-end text-danger">Discount:</td>
+              <td class="text-danger" th:text="'- Rs. ' + ${#numbers.formatDecimal(sale.discountAmount, 0, 'COMMA', 2, 'POINT')}"></td>
+            </tr>
+            <tr><td colspan="3" class="text-end fw-700 fs-6">Total:</td>
+              <td class="fw-700 text-success fs-6" th:text="'Rs. ' + ${#numbers.formatDecimal(sale.totalAmount, 0, 'COMMA', 2, 'POINT')}"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>

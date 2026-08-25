@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Receipt - <span th:text="${sale.invoiceNumber}"></span></title>
+  <style>
+    * { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 0; }
+    body { max-width: 300px; margin: 20px auto; padding: 10px; }
+    .center { text-align: center; }
+    .divider { border-top: 1px dashed #000; margin: 8px 0; }
+    .row { display: flex; justify-content: space-between; margin: 3px 0; }
+    .total-row { font-weight: bold; font-size: 14px; }
+    h2 { font-size: 18px; }
+    @media print { body { margin: 0; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+<div class="center">
+  <h2>StockSense</h2>
+  <p>AI-Powered Inventory Management</p>
+  <p>Tel: +94 11 000 0000</p>
+</div>
+<div class="divider"></div>
+<div class="row"><span>Invoice:</span><span th:text="${sale.invoiceNumber}"></span></div>
+<div class="row"><span>Date:</span><span th:text="${#temporals.format(sale.createdAt, 'dd/MM/yyyy HH:mm')}"></span></div>
+<div class="row"><span>Customer:</span><span th:text="${sale.customerName ?: 'Walk-in'}"></span></div>
+<div class="row"><span>Payment:</span><span th:text="${sale.paymentMethod}"></span></div>
+<div class="row"><span>Cashier:</span><span th:text="${sale.user != null ? sale.user.username : '-'}"></span></div>
+<div class="divider"></div>
+<div th:each="item : ${sale.items}">
+  <div th:text="${item.product.name}"></div>
+  <div class="row">
+    <span th:text="${item.quantity} + ' x Rs.' + ${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 2, 'POINT')}"></span>
+    <span th:text="'Rs. ' + ${#numbers.formatDecimal(item.totalPrice, 0, 'COMMA', 2, 'POINT')}"></span>
+  </div>
+</div>
+<div class="divider"></div>
+<div class="row"><span>Subtotal:</span><span th:text="'Rs. ' + ${#numbers.formatDecimal(sale.subtotal, 0, 'COMMA', 2, 'POINT')}"></span></div>
+<div class="row" th:if="${sale.discountAmount.compareTo(T(java.math.BigDecimal).ZERO) > 0}">
+  <span>Discount:</span><span th:text="'- Rs. ' + ${#numbers.formatDecimal(sale.discountAmount, 0, 'COMMA', 2, 'POINT')}"></span>
+</div>
+<div class="divider"></div>
+<div class="row total-row">
+  <span>TOTAL:</span><span th:text="'Rs. ' + ${#numbers.formatDecimal(sale.totalAmount, 0, 'COMMA', 2, 'POINT')}"></span>
+</div>
+<div class="divider"></div>
+<div class="center"><p>Thank you for your purchase!</p><p>*** StockSense ***</p></div>
+<div class="center no-print" style="margin-top:20px;">
+  <button onclick="window.print()" style="padding:8px 20px;cursor:pointer;">🖨️ Print</button>
+  <button onclick="window.close()" style="padding:8px 20px;cursor:pointer;margin-left:10px;">✖ Close</button>
+</div>
+</body>
+</html>
