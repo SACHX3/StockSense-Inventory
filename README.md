@@ -1,5 +1,7 @@
 # StockSense
 
+<p align="center"><img alt="Screening dashboard" border="0" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjNpAyTpO5UomwlXPS-yCkFdANTvv6wLQSgf5n15CcuhvN3hznrT2yfB7ZprgRJE-2YNdDzp98RUfZrTkjf4LtZuPc5-JNl9mXMJ2F5vhQAD0TcWl2Wu1h160a40XUooMu7bqVnj8XvqWgODRhZPaaFsgBmKjn4WkatOcEH8girGi_VGJUnBUjCNbP5lMA/s600/1b44670e-fce4-4e3f-8bbb-5bf54919b0e1.png"/></p>
+
 ## StockSense Inventory and Demand Forecasting System
 
 StockSense is an SME-focused inventory management system that brings together stock control, product and supplier management, sales/POS, OCR-assisted invoice processing, AI-supported demand forecasting, reports, audit logging and role-based access control in one web application.
