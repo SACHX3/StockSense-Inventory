@@ -1,4 +1,4 @@
-# StockSense v1.0.0 — Release Notes
+# StockSense v1.0.1 — Release Notes
 
 ## Overview
 StockSense is an AI-powered inventory management system combining a Spring Boot

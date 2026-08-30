@@ -6,10 +6,12 @@ import com.stocksense.entity.InvoiceItem;
 import com.stocksense.repository.InvoiceItemRepository;
 import com.stocksense.repository.InvoiceRepository;
 import com.stocksense.service.*;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -57,7 +59,7 @@ public class OCRController {
             invoice.setFilePath(filePath);
             invoice.setFileType(file.getContentType() != null && file.getContentType().contains("pdf")
                     ? Invoice.FileType.PDF : Invoice.FileType.IMAGE);
-            invoice.setInvoiceNumber(invoiceNumber);
+            invoice.setInvoiceNumber(invoiceNumber == null ? null : invoiceNumber.trim());
             if (supplierId != null) {
                 supplierService.findAllActive().stream()
                         .filter(s -> s.getId().equals(supplierId))
@@ -87,6 +89,11 @@ public class OCRController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> processOcr(@PathVariable Long id) {
         try {
             Map<String, Object> result = aiService.processInvoice(id);
+            if ("error".equalsIgnoreCase(String.valueOf(result.get("status")))) {
+                String message = String.valueOf(result.getOrDefault("message", "OCR service unavailable"));
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(ApiResponse.error(message));
+            }
             return ResponseEntity.ok(ApiResponse.success("OCR processing complete", result));
         } catch (Exception e) {
             log.error("OCR process error: {}", e.getMessage());
@@ -149,7 +156,9 @@ public class OCRController {
             return ResponseEntity.ok(ApiResponse.success("Invoice applied to inventory", result));
         } catch (Exception e) {
             log.error("Apply to inventory error: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+            HttpStatus status = e.getMessage() != null && e.getMessage().contains("already applied")
+                    ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status).body(ApiResponse.error(e.getMessage()));
         }
     }
 

@@ -3,13 +3,16 @@ package com.stocksense.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stocksense.entity.*;
 import com.stocksense.repository.*;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -30,10 +33,19 @@ public class AIIntegrationService {
     private final InventoryService inventoryService;
     private final ObjectMapper objectMapper;
 
-    private RestTemplate restTemplate = new RestTemplate();
+    private RestTemplate restTemplate = createRestTemplate();
+
+    private static RestTemplate createRestTemplate() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(15));
+        return new RestTemplate(factory);
+    }
 
     // ============ FORECASTING ============
 
+    @Transactional
     public Map<String, Object> getForecast(Long productId, int days) {
         try {
             Map<String, Object> requestBody = new HashMap<>();
@@ -45,8 +57,8 @@ public class AIIntegrationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    aiServiceUrl + "/api/forecast/predict", entity, Map.class);
+            ResponseEntity<Map<String, Object>> response = postJson(
+                    aiServiceUrl + "/api/forecast/predict", entity);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 saveForecastResults(productId, response.getBody());
@@ -66,8 +78,8 @@ public class AIIntegrationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(trainingData, headers);
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    aiServiceUrl + "/api/forecast/retrain", entity, Map.class);
+            ResponseEntity<Map<String, Object>> response = postJson(
+                    aiServiceUrl + "/api/forecast/retrain", entity);
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 return response.getBody();
@@ -76,6 +88,40 @@ public class AIIntegrationService {
             log.warn("AI retrain failed: {}", e.getMessage());
         }
         return Map.of("status", "error", "message", "AI service unavailable");
+    }
+
+    /** Check the external FastAPI service without affecting inventory data. */
+    public Map<String, Object> checkServiceAvailability() {
+        try {
+            ResponseEntity<Map<String, Object>> response = getJson(aiServiceUrl + "/health");
+            if (response.getStatusCode().is2xxSuccessful()) {
+                return Map.of(
+                        "available", true,
+                        "service", "FastAPI AI/OCR",
+                        "message", "FastAPI AI/OCR service is available");
+            }
+        } catch (Exception e) {
+            log.warn("AI service health check failed: {}", e.getMessage());
+        }
+        return Map.of(
+                "available", false,
+                "service", "FastAPI AI/OCR",
+                "message", "AI/OCR service unavailable. Core inventory remains available.");
+    }
+
+    /** Keeps the RestTemplate wire type as Map.class while exposing a typed response. */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private ResponseEntity<Map<String, Object>> postJson(String url, HttpEntity<?> request) {
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+        return new ResponseEntity<>((Map<String, Object>) response.getBody(),
+                response.getHeaders(), response.getStatusCode());
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private ResponseEntity<Map<String, Object>> getJson(String url) {
+        ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+        return new ResponseEntity<>((Map<String, Object>) response.getBody(),
+                response.getHeaders(), response.getStatusCode());
     }
 
     // ============ OCR ============
@@ -97,12 +143,23 @@ public class AIIntegrationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    aiServiceUrl + "/api/ocr/process", entity, Map.class);
+            ResponseEntity<Map<String, Object>> response = postJson(
+                    aiServiceUrl + "/api/ocr/process", entity);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> result = response.getBody();
                 invoice.setRawOcrText((String) result.get("raw_text"));
+                // Keep the OCR-detected business invoice number so duplicate uploads
+                // can be blocked even when they have different database IDs.
+                Object extractedInvoiceNumber = result.get("invoice_number");
+                if (extractedInvoiceNumber == null) {
+                    extractedInvoiceNumber = result.get("invoiceNumber");
+                }
+                if ((invoice.getInvoiceNumber() == null || invoice.getInvoiceNumber().isBlank())
+                        && extractedInvoiceNumber != null
+                        && !extractedInvoiceNumber.toString().isBlank()) {
+                    invoice.setInvoiceNumber(extractedInvoiceNumber.toString().trim());
+                }
                 invoice.setExtractedData(objectMapper.writeValueAsString(result));
                 invoice.setOcrStatus(Invoice.OcrStatus.COMPLETED);
                 invoiceRepository.save(invoice);
@@ -120,12 +177,26 @@ public class AIIntegrationService {
         return Map.of("status", "error", "message", "OCR service unavailable");
     }
 
+    @Transactional
     public Map<String, Object> applyInvoiceToInventory(Long invoiceId) {
-        Invoice invoice = invoiceRepository.findById(invoiceId)
+        Invoice invoice = invoiceRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
 
-        if (invoice.getIsApplied()) {
-            throw new RuntimeException("Invoice already applied to inventory");
+        String invoiceNumber = invoice.getInvoiceNumber() == null
+                ? "" : invoice.getInvoiceNumber().trim();
+        String invoiceLabel = invoiceNumber.isBlank() ? "(not provided)" : invoiceNumber;
+
+        if (Boolean.TRUE.equals(invoice.getIsApplied())) {
+            throw new RuntimeException("Duplicate OCR application blocked for invoice number "
+                    + invoiceLabel + ". This invoice was already applied to inventory; "
+                    + "no additional stock movement was created.");
+        }
+
+        if (!invoiceNumber.isBlank()
+                && !invoiceRepository.findAppliedByInvoiceNumberForUpdate(invoiceNumber, invoiceId).isEmpty()) {
+            throw new RuntimeException("Duplicate OCR application blocked for invoice number "
+                    + invoiceLabel + ". This invoice number was already applied to inventory; "
+                    + "no additional stock movement was created.");
         }
 
         int appliedCount = 0;
@@ -256,7 +327,13 @@ public class AIIntegrationService {
         Map<String, Object> data = new HashMap<>();
         LocalDateTime start = LocalDateTime.now().minusMonths(12);
         List<Object[]> history = saleItemRepository.findProductSalesHistory(start);
-        data.put("sales_history", history.size() + " records");
+        // FastAPI's RetrainRequest expects sales_history to be a JSON object.
+        // Sending a display string such as "15 records" causes a Pydantic 422
+        // validation error before the retraining endpoint can run.
+        Map<String, Object> salesHistory = new HashMap<>();
+        salesHistory.put("record_count", history.size());
+        salesHistory.put("period", "12 months");
+        data.put("sales_history", salesHistory);
         data.put("period", "12 months");
         return data;
     }
@@ -298,6 +375,9 @@ public class AIIntegrationService {
     private Map<String, Object> generateFallbackForecast(Long productId, int days) {
         // Simple moving average fallback
         Map<String, Object> result = new HashMap<>();
+        result.put("status", "fallback");
+        result.put("service_available", false);
+        result.put("message", "AI service unavailable. Fallback forecast displayed; core inventory remains available.");
         result.put("product_id", productId);
         result.put("forecast_days", days);
         result.put("model", "fallback_average");
@@ -335,6 +415,7 @@ public class AIIntegrationService {
     }
 
     @SuppressWarnings("unchecked")
+    @Transactional
     private void saveForecastResults(Long productId, Map<String, Object> result) {
         try {
             forecastResultRepository.deleteByProductId(productId);

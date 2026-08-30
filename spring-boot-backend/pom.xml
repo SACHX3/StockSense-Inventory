@@ -12,7 +12,7 @@
     </parent>
 
     <groupId>com.stocksense</groupId>
-    <artifactId>smart-inventory</artifactId>
+    <artifactId>stocksense</artifactId>
     <version>1.0.0</version>
     <packaging>war</packaging>
     <name>StockSense</name>
@@ -113,6 +113,22 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Selenium WebDriver for browser (UI) tests -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.21.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Automatically downloads/manages the matching chromedriver binary -->
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>5.9.1</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -133,6 +149,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <mainClass>com.stocksense.StockSenseApplication</mainClass>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

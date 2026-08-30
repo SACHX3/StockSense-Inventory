@@ -3,6 +3,7 @@ package com.stocksense.service;
 import com.stocksense.dto.request.SaleRequest;
 import com.stocksense.entity.*;
 import com.stocksense.repository.*;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,7 +21,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public class SaleService {
 
     private final SaleRepository saleRepository;
-    private final SaleItemRepository saleItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final InventoryLogRepository inventoryLogRepository;
@@ -42,11 +42,16 @@ public class SaleService {
         List<SaleItem> items = new ArrayList<>();
 
         for (SaleRequest.SaleItemRequest itemReq : request.getItems()) {
+            if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0) {
+                throw new RuntimeException("Quantity must be greater than zero");
+            }
             Product product = productRepository.findById(itemReq.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + itemReq.getProductId()));
 
             if (product.getQuantity() < itemReq.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for: " + product.getName() + ". Available: " + product.getQuantity());
+                throw new RuntimeException("Insufficient stock for: " + product.getName()
+                        + ". Requested: " + itemReq.getQuantity()
+                        + ", available: " + product.getQuantity());
             }
 
             SaleItem item = new SaleItem();

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+
+<th:block th:fragment="content">
+  <div class="d-flex align-items-center justify-content-center" style="min-height:calc(100vh - 120px);">
+    <div class="card text-center" style="max-width:720px;width:100%;overflow:hidden;">
+      <div style="height:6px;background:linear-gradient(90deg,var(--primary),var(--primary-2));"></div>
+      <div class="card-body px-4 px-md-5 py-5">
+        <div class="mx-auto mb-4 d-flex align-items-center justify-content-center"
+             style="width:88px;height:88px;border-radius:24px;background:var(--primary-soft);color:var(--primary);">
+          <i class="bi bi-shield-lock-fill" style="font-size:2.6rem;"></i>
+        </div>
+
+        <div class="text-uppercase fw-bold mb-2" style="font-size:.75rem;letter-spacing:.14em;color:var(--primary);">
+          HTTP 403 · Role-Based Access Control
+        </div>
+        <h2 class="fw-bold mb-3" style="color:var(--text);">Access Denied</h2>
+        <p class="text-muted mx-auto mb-4" style="max-width:560px;line-height:1.7;">
+          Your account is authenticated, but your assigned role does not have permission to open
+          <strong th:text="${requestedResource}">this administrative resource</strong>.
+          No protected information has been displayed or changed.
+        </p>
+
+        <div class="rounded-3 p-3 mb-4 text-start" style="background:var(--surface-2);border:1px solid var(--border);">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+              <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">Signed-in user</div>
+              <div class="fw-semibold" sec:authentication="name">staff</div>
+            </div>
+            <div class="col-md-6">
+              <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;">Assigned authority</div>
+              <div class="fw-semibold" sec:authentication="principal.authorities">ROLE_STAFF</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+          <a th:href="@{/dashboard}" class="btn btn-primary px-4">
+            <i class="bi bi-speedometer2 me-2"></i>Return to Dashboard
+          </a>
+          <button type="button" class="btn btn-outline-secondary px-4" onclick="history.back()">
+            <i class="bi bi-arrow-left me-2"></i>Go Back
+          </button>
+        </div>
+      </div>
+      <div class="card-footer text-muted" style="font-size:.78rem;">
+        Security event: unauthorised role request safely blocked by StockSense RBAC.
+      </div>
+    </div>
+  </div>
+</th:block>
+
+<th:block th:fragment="scripts"></th:block>
+</html>

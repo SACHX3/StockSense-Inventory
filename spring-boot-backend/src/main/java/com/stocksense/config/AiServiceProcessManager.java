@@ -43,7 +43,7 @@ public class AiServiceProcessManager {
     @Value("${app.ai-service.auto-start:true}")
     private boolean autoStart;
 
-    @Value("${app.ai-service.startup-timeout-seconds:45}")
+    @Value("${app.ai-service.startup-timeout-seconds:180}")
     private int startupTimeoutSeconds;
 
     @Value("${app.ai-service.working-dir:}")
@@ -53,6 +53,7 @@ public class AiServiceProcessManager {
     private String configuredPythonExecutable;
 
     private Process process;
+    private volatile String lastError;
 
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
@@ -67,37 +68,48 @@ public class AiServiceProcessManager {
         launcher.start();
     }
 
-    private void startAiServiceIfNeeded() {
+    // Public entry point for the manual "Start" button (and for auto-start on boot).
+    // Runs synchronously in the caller's thread - the controller wraps the call in a
+    // background thread so the HTTP request returns immediately.
+    public synchronized boolean startAiServiceIfNeeded() {
+        lastError = null;
         if (isServiceHealthy()) {
-            log.info("AI service already running at {} - skipping auto-start", aiServiceUrl);
-            return;
+            log.info("AI service already running at {} - skipping start", aiServiceUrl);
+            return true;
         }
 
         Path fastApiDir = resolveFastApiDir();
         if (fastApiDir == null || !Files.exists(fastApiDir.resolve("main.py"))) {
-            log.warn("Could not locate the fastapi-service folder (looked near {}). " +
-                            "Start it manually: cd fastapi-service && (start.bat | ./start.sh)",
-                    Paths.get("").toAbsolutePath());
-            return;
+            lastError = "Could not locate the fastapi-service folder. Start it manually: cd fastapi-service && (start.bat | ./start.sh)";
+            log.warn("{} (looked near {})", lastError, Paths.get("").toAbsolutePath());
+            return false;
         }
 
         String pythonExe = resolvePythonExecutable(fastApiDir);
         if (pythonExe == null) {
-            log.warn("No Python interpreter found on PATH. Install Python 3.10+ and re-run, " +
-                    "or start the AI service manually from {}", fastApiDir);
-            return;
+            lastError = "No Python interpreter found on PATH. Install Python 3.10+, or start the AI service manually.";
+            log.warn("{} ({})", lastError, fastApiDir);
+            return false;
         }
 
         try {
             List<String> command = new ArrayList<>();
-            command.add(pythonExe);
-            command.add("-m");
-            command.add("uvicorn");
-            command.add("main:app");
-            command.add("--host");
-            command.add("127.0.0.1");
-            command.add("--port");
-            command.add(extractPort(aiServiceUrl));
+            Path unixStartupScript = fastApiDir.resolve("start.sh");
+            if (!isWindows() && Files.exists(unixStartupScript)) {
+                // start.sh creates/reuses the venv and installs dependencies before
+                // starting Uvicorn. This is essential on a newly extracted macOS copy.
+                command.add("/bin/bash");
+                command.add(unixStartupScript.toAbsolutePath().toString());
+            } else {
+                command.add(pythonExe);
+                command.add("-m");
+                command.add("uvicorn");
+                command.add("main:app");
+                command.add("--host");
+                command.add("127.0.0.1");
+                command.add("--port");
+                command.add(extractPort(aiServiceUrl));
+            }
 
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(fastApiDir.toFile());
@@ -113,16 +125,51 @@ public class AiServiceProcessManager {
             boolean ready = waitUntilHealthy(startupTimeoutSeconds);
             if (ready) {
                 log.info("AI service is up at {} (OCR + forecasting)", aiServiceUrl);
+                return true;
             } else {
-                log.warn("AI service did not respond within {}s. Check {} for details. " +
-                        "The app will keep working with fallback forecasts until it's up.",
-                        startupTimeoutSeconds, logFile);
+                lastError = "AI service did not respond within " + startupTimeoutSeconds + "s. Check " + logFile + " for details.";
+                log.warn("{} The app will keep working with fallback forecasts until it's up.", lastError);
+                return false;
             }
         } catch (IOException e) {
-            log.warn("Failed to auto-start AI service ({}). You can still start it manually " +
-                    "from {}: {}", e.getMessage(), fastApiDir,
+            lastError = "Failed to start AI service: " + e.getMessage();
+            log.warn("{} You can still start it manually from {}: {}", lastError, fastApiDir,
                     isWindows() ? "start.bat" : "./start.sh");
+            return false;
         }
+    }
+
+    // Stops the AI service on demand (topbar "Stop" button). Separate from the
+    // @PreDestroy hook below, which stops it when the whole Spring Boot app shuts down.
+    public synchronized boolean stopAiServiceManually() {
+        lastError = null;
+        if (process == null || !process.isAlive()) {
+            lastError = "AI service isn\'t running (or wasn\'t started by this app - it may have been started manually).";
+            return false;
+        }
+        log.info("Stopping AI service (pid {})", process.pid());
+        process.destroy();
+        try {
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+            }
+        } catch (InterruptedException e) {
+            process.destroyForcibly();
+            Thread.currentThread().interrupt();
+        }
+        return true;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public boolean isManagedProcessAlive() {
+        return process != null && process.isAlive();
+    }
+
+    public boolean checkHealthy() {
+        return isServiceHealthy();
     }
 
     @PreDestroy

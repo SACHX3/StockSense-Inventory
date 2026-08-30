@@ -18,6 +18,9 @@ public class FileUploadService {
     @Value("${app.upload.invoices-dir:uploads/invoices}")
     private String invoicesDir;
 
+    @Value("${app.upload.avatars-dir:uploads/avatars}")
+    private String avatarsDir;
+
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp");
     private static final List<String> ALLOWED_INVOICE_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "application/pdf");
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -30,6 +33,11 @@ public class FileUploadService {
     public String uploadInvoiceFile(MultipartFile file) throws IOException {
         validateFile(file, ALLOWED_INVOICE_TYPES);
         return saveFile(file, invoicesDir);
+    }
+
+    public String uploadAvatar(MultipartFile file) throws IOException {
+        validateFile(file, ALLOWED_IMAGE_TYPES);
+        return saveFile(file, avatarsDir);
     }
 
     private String saveFile(MultipartFile file, String directory) throws IOException {

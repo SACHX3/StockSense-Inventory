@@ -2,18 +2,18 @@ package com.stocksense.config;
 
 import com.stocksense.entity.*;
 import com.stocksense.repository.*;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -27,12 +27,13 @@ public class DataInitializer implements CommandLineRunner {
     private final ProductRepository         productRepository;
     private final SaleRepository            saleRepository;
     private final SaleItemRepository        saleItemRepository;
-    private final InventoryLogRepository    inventoryLogRepository;
     private final PasswordEncoder           passwordEncoder;
+    private final JdbcTemplate              jdbcTemplate;
 
     @Override
     @Transactional
     public void run(String... args) {
+        repairOrphanedReferences();
         seedRoles();
         seedUsers();
         seedCategories();
@@ -45,6 +46,25 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  Login: manager / admin123  (Inventory Manager)");
         log.info("  Login: staff1 / admin123  (Staff)");
         log.info("=================================================");
+    }
+
+    private void repairOrphanedReferences() {
+        int inventoryRows = jdbcTemplate.update(
+                // Use a subquery instead of MySQL's multi-table DELETE syntax.
+                // The application test profile uses H2, which rejects
+                // `DELETE alias FROM ... LEFT JOIN ...`; this form works on
+                // both H2 and MySQL and also removes null foreign-key rows.
+                "DELETE FROM inventory_logs " +
+                "WHERE product_id IS NULL " +
+                "OR product_id NOT IN (SELECT id FROM products)");
+        int saleItemRows = jdbcTemplate.update(
+                "DELETE FROM sales_items " +
+                "WHERE product_id IS NULL " +
+                "OR product_id NOT IN (SELECT id FROM products)");
+        if (inventoryRows > 0 || saleItemRows > 0) {
+            log.warn("Repaired orphaned database rows: inventory_logs={}, sales_items={}",
+                    inventoryRows, saleItemRows);
+        }
     }
 
     private void seedRoles() {

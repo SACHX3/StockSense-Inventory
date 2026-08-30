@@ -2,6 +2,7 @@ package com.stocksense.controller;
 
 import com.stocksense.dto.request.UserRequest;
 import com.stocksense.service.UserService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;

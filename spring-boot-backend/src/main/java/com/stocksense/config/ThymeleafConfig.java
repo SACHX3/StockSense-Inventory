@@ -1,10 +1,7 @@
 package com.stocksense.config;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.thymeleaf.spring6.templateresolver.SpringResourceTemplateResolver;
-import org.thymeleaf.templatemode.TemplateMode;
 
 @Configuration
 public class ThymeleafConfig implements WebMvcConfigurer {

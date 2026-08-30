@@ -2,6 +2,7 @@ package com.stocksense.controller;
 
 import com.stocksense.entity.Product;
 import com.stocksense.repository.ProductRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

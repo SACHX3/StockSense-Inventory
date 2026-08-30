@@ -3,12 +3,12 @@ package com.stocksense.service;
 import com.stocksense.dto.request.InventoryAdjustRequest;
 import com.stocksense.entity.*;
 import com.stocksense.repository.*;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor

@@ -41,8 +41,8 @@ echo "[OK] Virtual environment activated."
 
 # ── Install dependencies ──────────────────────────────────────────────────
 echo "[2/3] Installing dependencies..."
-pip install --upgrade pip --quiet
-pip install -r requirements.txt --quiet
+python -m pip install --upgrade pip --quiet
+python -m pip install -r requirements.txt --quiet
 
 # ── Check Tesseract ────────────────────────────────────────────────────────
 echo "[3/3] Checking Tesseract..."
@@ -63,4 +63,6 @@ echo " Press Ctrl+C to stop"
 echo "=========================================="
 echo ""
 
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# "exec" lets Spring Boot own and stop this process cleanly.  Avoid --reload
+# for automatic startup because its extra watcher process can be left behind.
+exec python -m uvicorn main:app --host 127.0.0.1 --port 8000

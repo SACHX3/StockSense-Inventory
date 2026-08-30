@@ -1,11 +1,13 @@
 package com.stocksense.repository;
 
-import com.stocksense.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.stocksense.entity.Product;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +16,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsBySku(String sku);
 
     List<Product> findByIsActiveTrue();
+    List<Product> findBySupplierIdAndIsActiveTrueOrderByNameAsc(Long supplierId);
     List<Product> findByCategoryIdAndIsActiveTrue(Long categoryId);
 
     @Query("SELECT p FROM Product p WHERE p.quantity <= p.minStockLevel AND p.isActive = true")

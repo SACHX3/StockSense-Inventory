@@ -29,6 +29,9 @@ public class User {
     @Column(length = 20)
     private String phone;
 
+    @Column(name = "avatar_path", length = 255)
+    private String avatarPath;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;

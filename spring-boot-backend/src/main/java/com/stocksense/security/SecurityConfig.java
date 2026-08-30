@@ -39,7 +39,7 @@ public class SecurityConfig {
                     "/static/**", "/webjars/**", "/favicon.ico",
                     "/uploads/**"
                 ).permitAll()
-                .requestMatchers("/login", "/error").permitAll()
+                .requestMatchers("/login", "/error", "/access-denied").permitAll()
 
                 // Admin only pages
                 .requestMatchers("/users/**", "/audit/**").hasRole("ADMIN")
@@ -75,6 +75,10 @@ public class SecurityConfig {
                 .defaultSuccessUrl("/dashboard", true)
                 .failureUrl("/login?error=true")
                 .permitAll()
+            )
+
+            .exceptionHandling(exceptions -> exceptions
+                .accessDeniedPage("/access-denied")
             )
 
             .logout(logout -> logout

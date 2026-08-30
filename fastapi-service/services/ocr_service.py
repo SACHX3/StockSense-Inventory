@@ -9,6 +9,7 @@ Fixes:
 """
 import os, re, logging
 from typing import Dict, Any, List, Optional
+from utils.tesseract_compat import load_pytesseract
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class OCRService:
         self.tesseract_ok = False
         self.pdfplumber_ok = False
         try:
-            import pytesseract
+            pytesseract = load_pytesseract()
             if os.name == 'nt':
                 tp = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
                 if os.path.exists(tp):
@@ -250,7 +251,7 @@ class OCRService:
         if not self.tesseract_ok:
             return self._demo_result(invoice_id, "Tesseract not installed")
         try:
-            import pytesseract
+            pytesseract = load_pytesseract()
             from PIL import Image, ImageEnhance, ImageFilter
             img = Image.open(path).convert('L')
             # Enhance for better OCR
@@ -397,8 +398,18 @@ class OCRService:
         name = re.sub(r'\|+', ' ', raw)
         # Remove leading row numbers like "1 " or "1."
         name = re.sub(r'^\d+[\.\s]+', '', name.strip())
-        # Remove trailing unit words that got merged
-        name = re.sub(r'\s+(can|bottle|pack|tin|bag|bar|pcs|kg|ml|g|l)$', '', name, flags=re.IGNORECASE)
+        # Keep packaging words when they are part of the product name
+        # (for example, "Coca-Cola 330ml Can"). OCR/table extraction can
+        # sometimes append the unit twice ("Can can"), so collapse only
+        # duplicated packaging words instead of deleting the valid word.
+        name = re.sub(
+            r'\b(can|bottle|pack|tin|bag|bar)\s+\1$',
+            r'\1',
+            name,
+            flags=re.IGNORECASE,
+        )
+        # Remove only standalone administrative quantity markers.
+        name = re.sub(r'\s+(pcs?|units?)$', '', name, flags=re.IGNORECASE)
         # Collapse whitespace
         name = re.sub(r'\s+', ' ', name).strip()
         # Remove trailing punctuation

@@ -5,6 +5,7 @@ import com.stocksense.dto.response.ApiResponse;
 import com.stocksense.entity.Sale;
 import com.stocksense.service.ProductService;
 import com.stocksense.service.SaleService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

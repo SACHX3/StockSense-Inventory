@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-camera me-2 text-primary"></i>Evidence Demonstrations</h4>
+    <p class="text-muted mb-0" style="font-size:.85rem;">Open and run the five remaining report-evidence scenarios.</p>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>Each option uses the real application route and business validation. Capture the final visible result with the signed-in username and role shown in the top bar.
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><span class="badge bg-primary me-2">EV-13</span>Supplier Details</div>
+      <div class="card-body">
+        <p class="text-muted">Shows contact information and all active products linked to the selected supplier.</p>
+        <select id="supplierEvidence" class="form-select mb-3">
+          <option value="">Select supplier</option>
+          <option th:each="s : ${suppliers}" th:value="${s.id}" th:text="${s.name}"></option>
+        </select>
+        <button class="btn btn-primary" onclick="openSelected('supplierEvidence','/evidence/supplier/')"><i class="bi bi-eye me-1"></i>Open Supplier Details</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><span class="badge bg-primary me-2">EV-17</span>Product Stock History</div>
+      <div class="card-body">
+        <p class="text-muted">Shows before/after quantities, movement type, reference, user and timestamp.</p>
+        <select id="productEvidence" class="form-select mb-3">
+          <option value="">Select product</option>
+          <option th:each="p : ${products}" th:value="${p.id}" th:text="${p.name + ' — stock ' + p.quantity}"></option>
+        </select>
+        <button class="btn btn-primary" onclick="openSelected('productEvidence','/evidence/product-history/')"><i class="bi bi-clock-history me-1"></i>Open Stock History</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><span class="badge bg-danger me-2">EV-20</span>Insufficient-Stock Error</div>
+      <div class="card-body d-flex flex-column">
+        <p class="text-muted">The POS test button prepares a request above available stock. Processing the sale runs real server-side validation and must reject the transaction.</p>
+        <a th:href="@{/evidence/insufficient-stock}" class="btn btn-outline-danger mt-auto align-self-start"><i class="bi bi-cart-x me-1"></i>Open POS Stock Test</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><span class="badge bg-danger me-2">EV-29</span>Duplicate OCR Application</div>
+      <div class="card-body">
+        <p class="text-muted">Open an already-applied invoice and select Test Duplicate Protection.</p>
+        <select id="invoiceEvidence" class="form-select mb-3" th:disabled="${#lists.isEmpty(appliedInvoices)}">
+          <option value="" th:text="${#lists.isEmpty(appliedInvoices)} ? 'No applied invoice available' : 'Select applied invoice'"></option>
+          <option th:each="i : ${appliedInvoices}" th:value="${i.id}" th:text="${'Invoice #' + i.id + (i.invoiceNumber != null ? ' — ' + i.invoiceNumber : '')}"></option>
+        </select>
+        <button class="btn btn-outline-danger" th:disabled="${#lists.isEmpty(appliedInvoices)}" onclick="openSelected('invoiceEvidence','/evidence/duplicate-ocr/')"><i class="bi bi-shield-x me-1"></i>Open Duplicate Test</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><span class="badge bg-warning text-dark me-2">EV-33</span>AI-Service Failure Handling</div>
+      <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <p class="text-muted mb-0">Stop the FastAPI service, open forecasting and click Check AI Service. StockSense will show an unavailable/fallback message while the core application remains operational.</p>
+        <a th:href="@{/evidence/ai-service}" class="btn btn-outline-warning"><i class="bi bi-cloud-slash me-1"></i>Open Service Check</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+</th:block>
+<th:block th:fragment="scripts">
+<script>
+function openSelected(selectId, prefix) {
+  var value = document.getElementById(selectId).value;
+  if (!value) {
+    if (window.stocksenseToast) window.stocksenseToast('Please select a record first.', 'warning');
+    else alert('Please select a record first.');
+    return;
+  }
+  window.location.href = prefix + value;
+}
+</script>
+</th:block>
+</html>

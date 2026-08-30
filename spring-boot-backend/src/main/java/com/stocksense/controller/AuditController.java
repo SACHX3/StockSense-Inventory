@@ -1,10 +1,11 @@
 package com.stocksense.controller;
 
-import com.stocksense.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
+import com.stocksense.service.AuditLogService;
 
 @Controller
 @RequestMapping("/audit")

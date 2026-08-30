@@ -1,437 +1,321 @@
-
-# StockSense
-
-<p align="center"><img alt="Screening dashboard" border="0" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjNpAyTpO5UomwlXPS-yCkFdANTvv6wLQSgf5n15CcuhvN3hznrT2yfB7ZprgRJE-2YNdDzp98RUfZrTkjf4LtZuPc5-JNl9mXMJ2F5vhQAD0TcWl2Wu1h160a40XUooMu7bqVnj8XvqWgODRhZPaaFsgBmKjn4WkatOcEH8girGi_VGJUnBUjCNbP5lMA/s600/1b44670e-fce4-4e3f-8bbb-5bf54919b0e1.png"/></p>
-
-
-## StockSense Inventory and Demand Forecasting System
-
-StockSense is an SME-focused inventory management system that brings together stock control, product and supplier management, sales/POS, OCR-assisted invoice processing, AI-supported demand forecasting, reports, audit logging and role-based access control in one web application.
-
-The system uses a Spring Boot web application as the main platform and a separate Python/FastAPI service for OCR and forecasting tasks. OCR results are reviewed and validated by an authorised user before approved invoice items update inventory.
-
-> **Project status:** StockSense is an academic demonstration and prototype system. It is suitable for structured testing and demonstration, but it has not been presented as a production-ready commercial deployment. Formal SME user-acceptance testing and larger labelled OCR/forecasting accuracy studies remain future work.
+# 🏪 StockSense
+## AI-Powered Inventory Management & Demand Forecasting with OCR
 
 ---
 
-## Main Features
-
-### Inventory and product management
-
-- Product and category CRUD operations
-- Supplier management
-- Purchase-order support
-- Stock-in and stock-out transactions
-- Inventory adjustments and inventory history
-- Low-stock monitoring
-- Product image upload support
-- Transaction records and audit history
-
-### Sales and POS
-
-- Product search and POS cart management
-- Stock validation before completing a sale
-- Automatic stock deduction after a completed sale
-- Sales history and sale details
-- Receipt generation and printing
-- Support for configured payment methods
-
-### OCR invoice processing
-
-- Upload JPG, PNG and PDF invoices
-- Extract invoice text using Tesseract and PDF processing tools
-- Identify invoice and item information for review
-- Display OCR output and confidence information where available
-- Human validation and correction before approval
-- Update inventory only after invoice data is approved
-- Demo-mode fallback when a local Tesseract installation is unavailable
-
-### AI demand forecasting
-
-- Product-specific Random Forest regression forecasting
-- Historical sales data analysis
-- Configurable forecast horizon through the forecasting interface
-- Forecast visualisation and supporting summary information
-- Model status and on-demand retraining endpoints
-- Moving-average fallback when the AI service or adequate historical data is unavailable
-- MAE, RMSE and MAPE reporting only when sufficient evaluation data exists
-
-### Reports and administration
-
-- Inventory, sales and supplier reports
-- Dashboard summaries and charts
-- User management
-- Role-based navigation and access control
-- Audit-log viewing for authorised administrators
-- Authentication, session control and protected routes
-
----
-
-## Technology Stack
-
-| Layer | Technology |
-|---|---|
-| Main application | Java 21, Spring Boot 3, Maven |
-| Web interface | Thymeleaf, HTML, CSS, JavaScript and Chart.js |
-| Security | Spring Security and role-based access control |
-| Persistence | Spring Data JPA, Hibernate and MySQL 8 |
-| AI/OCR service | Python 3.10+, FastAPI and Uvicorn |
-| Forecasting | scikit-learn Random Forest regression |
-| OCR | Tesseract OCR and PDF text-processing libraries |
-| Testing database | H2 where configured by the test profile |
-| Development tools | IntelliJ IDEA or Eclipse, XAMPP/phpMyAdmin optional |
-
----
-
-## System Architecture
-
-```mermaid
-flowchart TD
-    U[User browser] --> S[Spring Boot application\nPort 8080]
-    S --> T[Thymeleaf UI and REST controllers]
-    S --> D[(MySQL database\nPort 3306)]
-    S --> A[FastAPI AI/OCR service\nPort 8000]
-    A --> F[Random Forest forecasting]
-    A --> O[Tesseract and PDF OCR processing]
-```
-
-The Spring Boot application owns authentication, business rules, inventory, sales, reports and database transactions. The FastAPI service is called when OCR or forecasting functionality is used.
-
----
-
-## System Requirements
+## 📋 System Requirements
 
 | Component | Requirement |
-|---|---|
-| Java | JDK 21 |
-| Maven | 3.8 or later |
-| MySQL | MySQL 8 or compatible local installation |
-| Python | Python 3.10 or later |
-| Tesseract | Tesseract 4 or later for live OCR |
-| Browser | Current Chrome, Edge, Firefox or Safari |
-| IDE | IntelliJ IDEA or Eclipse |
-
-XAMPP can be used to run MySQL and phpMyAdmin locally, but it is not mandatory if MySQL is already installed.
+|-----------|------------|
+| Java | 21 (JDK) |
+| Maven | 3.8+ |
+| MySQL | 8.0+ (via XAMPP) |
+| Python | 3.10+ |
+| IDE | IntelliJ IDEA / Eclipse |
+| Tesseract | 4.0+ (for real OCR) |
 
 ---
 
-## Project Structure
+## 🚀 Quick Start (Step by Step)
 
-```text
-stocksense/
-├── spring-boot-backend/
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/stocksense/
-│       │   ├── config/              # Application configuration
-│       │   ├── controller/          # Web and REST controllers
-│       │   ├── dto/                 # Request and response DTOs
-│       │   ├── entity/              # JPA entities
-│       │   ├── exception/            # Error handling
-│       │   ├── repository/           # Spring Data repositories
-│       │   ├── security/             # Spring Security configuration
-│       │   └── service/              # Business logic
-│       ├── main/resources/
-│       │   ├── application.properties
-│       │   ├── static/               # CSS, JavaScript and images
-│       │   └── templates/
-│       │       ├── auth/              # Login and profile pages
-│       │       ├── dashboard/         # Dashboard
-│       │       ├── products/          # Product and category pages
-│       │       ├── suppliers/         # Supplier pages
-│       │       ├── purchase-orders/   # Purchase-order pages
-│       │       ├── inventory/         # Inventory and stock logs
-│       │       ├── sales/             # POS, sales and receipts
-│       │       ├── ocr/               # Invoice OCR workflow
-│       │       ├── forecasting/       # Forecasting pages
-│       │       ├── reports/            # Reports and analytics
-│       │       ├── admin/              # Administration and audit pages
-│       │       └── fragments/          # Shared layout fragments
-│       └── test/                      # Application and entity tests
-├── fastapi-service/
-│   ├── main.py                        # FastAPI application entry point
-│   ├── requirements.txt               # Python dependencies
-│   ├── start.bat                      # Windows startup script
-│   ├── start.sh                       # Linux/macOS startup script
-│   ├── routers/                       # Forecast and OCR endpoints
-│   ├── services/                      # Forecast and OCR services
-│   ├── schemas/                       # Pydantic request/response models
-│   └── ml_models/                     # Generated or saved model files
-└── database/
-    └── schema/
-        ├── 01_schema.sql
-        └── SALES_HISTORY_AI_FORECAST_2026-08-23.sql
-```
+### STEP 1: Database Setup
+
+1. Start **XAMPP** → Start **MySQL**
+2. Open **phpMyAdmin** → `http://localhost/phpmyadmin`
+3. Open SQL tab and run: `database/schema/01_schema.sql`
+4. This creates all tables + demo data automatically
 
 ---
 
-## Quick Start
+### STEP 2: Spring Boot Backend
 
-### 1. Configure and start MySQL
-
-1. Start MySQL through XAMPP or your local MySQL installation.
-2. Open phpMyAdmin at [http://localhost/phpmyadmin](http://localhost/phpmyadmin), or use the MySQL client.
-3. Run the SQL files in this order:
-
-   ```text
-   database/schema/00_RESET_DATABASE_FOR_DEMO.sql
-   database/schema/01_schema.sql
-   database/schema/SALES_HISTORY_AI_FORECAST_2026-08-23.sql
+1. Open `spring-boot-backend` folder in **IntelliJ IDEA** or **Eclipse**
+2. Wait for Maven to download dependencies
+3. Edit `src/main/resources/application.properties` if needed:
+   ```properties
+   spring.datasource.username=root
+   spring.datasource.password=        # your MySQL password (blank for XAMPP default)
    ```
+4. Run `StockSenseApplication.java`
+5. App starts at: **http://localhost:8080**
 
-The reset script is intended for a clean demonstration database. Do not run it against a database containing data that must be preserved.
+---
 
-### 2. Configure the Spring Boot application
+### STEP 3: FastAPI AI Service
 
-Open:
+The FastAPI AI service now starts automatically with Spring Boot. On the first
+macOS/Linux launch it creates `fastapi-service/venv`, installs the Python
+packages, and then starts OCR and forecasting. The first launch can take a few
+minutes. Use the commands below only if you want to run the service manually.
 
-```text
-spring-boot-backend/src/main/resources/application.properties
+**Option A - Windows:**
 ```
-
-Update the database and AI-service settings for the local machine:
-
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/smart_inventory
-spring.datasource.username=root
-spring.datasource.password=
-app.ai-service.base-url=http://localhost:8000
-```
-
-The password is commonly blank for a default XAMPP installation. Use the password configured on the local MySQL server.
-
-### 3. Start the FastAPI service
-
-From the project root:
-
-#### Windows
-
-```powershell
 cd fastapi-service
-.\start.bat
+start.bat
 ```
 
-#### Linux or macOS
-
+**Option B - Linux/Mac:**
 ```bash
 cd fastapi-service
 chmod +x start.sh
 ./start.sh
 ```
 
-#### Manual startup
-
+**Option C - Manual:**
 ```bash
 cd fastapi-service
-python -m venv .venv
-
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-
-# Linux/macOS
-source .venv/bin/activate
-
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-The AI/OCR service is available at [http://localhost:8000](http://localhost:8000). Interactive API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
+AI Service runs at: **http://localhost:8000**
+API Docs: **http://localhost:8000/docs**
 
-### 4. Start the Spring Boot application
+---
 
-1. Open `spring-boot-backend` in IntelliJ IDEA or Eclipse.
-2. Allow Maven to download the dependencies.
-3. Run `SmartInventoryApplication.java`, or the main class annotated with `@SpringBootApplication`, under `src/main/java/com/stocksense/`.
-4. Open [http://localhost:8080](http://localhost:8080).
+### STEP 4: Install Tesseract OCR (For Real OCR)
 
-The Spring Boot application must be running before using the main StockSense web interface. The FastAPI service must also be running for live forecasting and OCR processing.
+**Windows:**
+- Download installer: https://github.com/UB-Mannheim/tesseract/wiki
+- Install to default path
+- Add to PATH environment variable
 
-### 5. Install Tesseract for live OCR
-
-Without Tesseract, the service can use its demonstration fallback where supported, but it will not perform full local OCR extraction.
-
-#### Windows
-
-- Install Tesseract from the [UB Mannheim Tesseract distribution](https://github.com/UB-Mannheim/tesseract/wiki).
-- Add the Tesseract installation directory to the system `PATH` if the installer does not do so automatically.
-
-#### Ubuntu/Debian
-
+**Ubuntu/Debian:**
 ```bash
-sudo apt-get update
 sudo apt-get install tesseract-ocr
 ```
 
-#### macOS
-
+**Mac:**
 ```bash
 brew install tesseract
 ```
 
----
-
-## Demonstration Accounts
-
-These credentials are for local demonstration only and must be changed before any real deployment.
-
-| Role | Username | Password | Main access |
-|---|---|---|---|
-| Administrator | `admin` | `admin123` | Full system access, users, audit logs, reports and transactions |
-| Inventory manager | `manager` | `admin123` | Products, categories, suppliers, purchase orders, inventory, OCR, forecasting and reports |
-| Staff | `staff1` | `admin123` | POS, sales history and receipts |
-
-The administrator role is able to access the complete system, including sales history and inventory logs. Inventory managers and staff are restricted according to their assigned responsibilities.
+> **Note:** Without Tesseract, the OCR service runs in **Demo Mode** which generates realistic sample data for testing.
 
 ---
 
-## Role-Based Access Control
+## 🔐 Default Login Credentials
 
-### Administrator
-
-- Access all inventory, product, supplier, purchase-order, sales, OCR, forecasting and reporting functions
-- Manage users and roles
-- Review audit logs
-- View sales history and inventory logs
-
-### Inventory manager
-
-- Manage products, categories and suppliers
-- Manage purchase orders and inventory records
-- Review and approve OCR invoice data
-- Use demand forecasting
-- View operational reports
-- Cannot manage users or access administrator-only audit controls
-
-### Staff
-
-- Create sales through the POS interface
-- View relevant sales history
-- Generate or print receipts
-- Cannot manage products, suppliers, inventory, OCR, forecasting, reports or users
+| Role | Username | Password | Access |
+|------|----------|----------|--------|
+| **Admin** | `admin` | `admin123` | Full system access |
+| **Inventory Manager** | `manager` | `admin123` | Products, inventory, OCR, forecasting |
+| **Staff** | `staff1` | `admin123` | Sales (POS) only |
 
 ---
 
-## FastAPI Endpoints
+## 🏗️ System Architecture
 
-| Endpoint | Method | Purpose |
-|---|---:|---|
-| `/api/forecast/predict` | POST | Generate a product demand forecast |
-| `/api/forecast/retrain` | POST | Retrain the forecasting model when supported by the service |
-| `/api/forecast/status` | GET | Return forecasting-service or model status |
-| `/api/ocr/process` | POST | Process an uploaded invoice |
-| `/api/ocr/status` | GET | Return OCR-service status |
-| `/docs` | GET | Open the FastAPI interactive documentation |
-
-Endpoint availability can depend on the checked-out project version and the local service configuration.
-
----
-
-## Configuration
-
-### Database connection
-
-Edit `spring-boot-backend/src/main/resources/application.properties`:
-
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/smart_inventory
-spring.datasource.username=root
-spring.datasource.password=your_mysql_password
+```
+Browser
+  ↓ HTTP
+Spring Boot (Port 8080)
+  ├── Thymeleaf Templates (UI)
+  ├── REST APIs
+  ├── Spring Security (Auth)
+  └── JPA/Hibernate → MySQL (Port 3306)
+        ↓ REST (when AI features used)
+      FastAPI (Port 8000)
+        ├── AI Forecasting (scikit-learn RandomForest)
+        └── OCR Processing (Tesseract/pdfplumber)
 ```
 
-### AI service URL
+---
 
+## 👤 Role-Based Access Control
+
+### Admin (ROLE_ADMIN)
+- Full system access
+- User management
+- Audit logs
+- All inventory features
+- All reports
+
+### Inventory Manager (ROLE_INVENTORY_MANAGER)
+- Product CRUD
+- Category management
+- Supplier management
+- Inventory logs & adjustments
+- OCR invoice processing
+- AI demand forecasting
+- Reports
+- **Cannot:** manage users, view audit logs
+
+### Staff (ROLE_STAFF)
+- New Sale (POS terminal)
+- Sales history view
+- Print receipts
+- **Cannot:** manage products, suppliers, inventory, OCR, forecasting, reports, users
+
+---
+
+## 📂 Project Structure
+
+```
+smart-inventory/
+├── spring-boot-backend/          # Java Spring Boot app
+│   ├── src/main/java/com/stocksense/
+│   │   ├── StockSenseApplication.java
+│   │   ├── config/               # App configuration
+│   │   ├── controller/           # MVC Controllers
+│   │   ├── dto/                  # Data Transfer Objects
+│   │   │   ├── request/          # Request DTOs
+│   │   │   └── response/         # Response DTOs
+│   │   ├── entity/               # JPA Entities
+│   │   ├── exception/            # Global exception handling
+│   │   ├── repository/           # Spring Data repositories
+│   │   ├── security/             # Spring Security config
+│   │   └── service/              # Business logic
+│   └── src/main/resources/
+│       ├── application.properties
+│       └── templates/            # Thymeleaf HTML templates
+│           ├── auth/             # Login, profile
+│           ├── dashboard/        # Dashboard
+│           ├── products/         # Product management
+│           ├── suppliers/        # Supplier management
+│           ├── inventory/        # Inventory logs
+│           ├── sales/            # POS & sales history
+│           ├── ocr/              # OCR invoice processing
+│           ├── forecasting/      # AI forecasting
+│           ├── reports/          # Reports
+│           ├── admin/            # User management, audit
+│           └── fragments/        # Shared layout
+│
+├── fastapi-service/              # Python AI/OCR service
+│   ├── main.py                   # FastAPI app entry
+│   ├── requirements.txt          # Python dependencies
+│   ├── start.sh / start.bat      # Startup scripts
+│   ├── routers/
+│   │   ├── forecast_router.py    # Forecasting endpoints
+│   │   └── ocr_router.py         # OCR endpoints
+│   ├── services/
+│   │   ├── forecast_service.py   # ML forecasting logic
+│   │   └── ocr_service.py        # OCR processing logic
+│   ├── schemas/                  # Pydantic models
+│   └── ml_models/                # Saved ML models (auto-created)
+│
+└── database/
+    └── schema/
+        └── 01_schema.sql         # Full DB schema + seed data
+```
+
+---
+
+## 🌟 Key Features
+
+### ✅ AI Demand Forecasting
+- Random Forest ML model
+- Historical sales analysis
+- Confidence intervals
+- 7-90 day predictions
+- Auto-retrains on demand
+- Fallback to moving average
+
+### ✅ OCR Invoice Processing
+- Upload JPG/PNG/PDF invoices
+- Automatic text extraction
+- Smart product/price detection
+- Manual validation workflow
+- One-click inventory update
+
+### ✅ POS Sales System
+- Real-time product search
+- Cart management
+- Auto stock deduction
+- Receipt generation
+- Multiple payment methods
+
+### ✅ Inventory Management
+- Stock IN/OUT tracking
+- Low stock alerts
+- Full audit trail
+- Adjustment history
+
+### ✅ Role-Based Security
+- 3 distinct roles
+- Spring Security integration
+- Session management
+- Audit logging
+
+---
+
+## 🔧 Configuration
+
+### Change Database Password
+Edit `spring-boot-backend/src/main/resources/application.properties`:
+```properties
+spring.datasource.password=your_password_here
+```
+
+### Change AI Service URL
 ```properties
 app.ai-service.base-url=http://localhost:8000
 ```
 
-### File uploads
-
+### Upload Directory
 ```properties
 app.upload.dir=uploads
 ```
 
-Ensure that the configured upload location is writable. Product images and uploaded invoice files should not be committed to GitHub unless they are intentionally included as demonstration assets.
+---
+
+## 🐛 Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Port 8080 in use | Change `server.port` in application.properties |
+| DB connection failed | Check MySQL is running, verify credentials |
+| OCR shows demo data | Install Tesseract OCR (see Step 4) |
+| AI service offline | Forecasting uses fallback moving average |
+| Products image not showing | Check `uploads/products` directory exists |
 
 ---
 
-## Testing
+## 📊 API Endpoints (FastAPI)
 
-From the Spring Boot project directory:
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/forecast/predict` | POST | Generate demand forecast |
+| `/api/forecast/retrain` | POST | Retrain AI model |
+| `/api/forecast/status` | GET | Model status |
+| `/api/ocr/process` | POST | Process invoice OCR |
+| `/api/ocr/status` | GET | OCR service status |
+| `/docs` | GET | Interactive API docs |
+
+---
+
+## 🎓 Final Year Project Notes
+
+This system demonstrates:
+- **Enterprise Architecture:** Layered design, DTO pattern, repository pattern
+
+### Testing
+
+The project includes unit tests for the Spring Boot services and POS controller,
+as well as the FastAPI OCR and forecasting services. The test inventory and
+manual acceptance scenarios are documented in `TEST_CASES.md`.
+
+Run the automated tests with:
 
 ```bash
+# Spring Boot backend
 cd spring-boot-backend
-mvn clean test
+mvn test
+
+# FastAPI service
+cd ../fastapi-service
+python -m pytest tests/ -v
 ```
 
-The project includes application and entity-level tests. H2 may be used for isolated tests where the test profile is configured; MySQL is required for the full integrated demonstration.
-
-For manual verification, test the main workflows in this order:
-
-1. Login and role-based navigation
-2. Product, category and supplier management
-3. Inventory logs and stock adjustments
-4. Purchase-order processing
-5. POS sale, stock deduction and receipt generation
-6. Sales history and reports
-7. OCR upload, review, correction and invoice approval
-8. Forecasting with available sales history
-9. User management and audit-log access as administrator
-
-The recorded verification is prototype evidence and does not replace formal SME user-acceptance testing or future labelled-model accuracy evaluation.
+The POS test coverage verifies that `/sales/create` loads active products into
+the POS view, returns a flat success response for receipt printing, and safely
+reports insufficient-stock errors.
+- **AI/ML Integration:** scikit-learn RandomForest for demand forecasting
+- **OCR Technology:** Tesseract + pdfplumber for document processing
+- **Microservices:** Spring Boot + FastAPI integration
+- **Security:** Spring Security with role-based access
+- **Database Design:** Normalized schema with proper indexing
 
 ---
 
-## Troubleshooting
-
-| Problem | Check |
-|---|---|
-| Port 8080 is already in use | Stop the existing process or change `server.port` in `application.properties`. |
-| Port 8000 is already in use | Stop the existing Uvicorn process or start FastAPI on another port and update `app.ai-service.base-url`. |
-| Database connection fails | Confirm MySQL is running, the database name exists, and the username/password are correct. |
-| Tables or demo data are missing | Run the three SQL files in the documented order. |
-| OCR uses fallback/demo data | Install Tesseract and confirm it is available on `PATH`. |
-| Forecasting is unavailable | Confirm the FastAPI service is running, the base URL is correct, and sufficient sales history exists. |
-| Forecast quality is limited | Forecasts depend on the quantity and quality of historical sales data. |
-| Product images are not displayed | Check the configured upload directory and confirm that it is writable. |
-| Maven tests fail | Confirm JDK 21 is selected and run `mvn clean test` from `spring-boot-backend`. |
-
----
-
-## Academic Project Scope and Limitations
-
-StockSense demonstrates:
-
-- Layered enterprise application architecture
-- Spring Boot and Thymeleaf server-rendered web development
-- DTO, repository and service patterns
-- MySQL database design and JPA/Hibernate persistence
-- Spring Security and role-based access control
-- Integration between a Java application and a Python/FastAPI microservice
-- OCR-assisted invoice entry with human validation
-- AI-supported product demand forecasting
-- Reports, transaction controls and audit logging
-
-The current implementation is data-dependent. Forecast quality depends on historical sales records, while OCR quality depends on invoice layout, image quality and Tesseract availability. Future work includes formal SME user-acceptance testing, labelled OCR and forecasting evaluation datasets, stronger production security, containerisation, CI/CD, monitoring and deployment governance.
-
----
-
-## GitHub Safety Checklist
-
-Before pushing the project:
-
-- Remove real passwords, API keys and private connection strings.
-- Do not commit `.env` files or personal database exports.
-- Review uploaded invoices and product images for personal or confidential information.
-- Keep generated uploads and large model files out of Git when they are not required.
-- Confirm that demonstration credentials are clearly marked as local-only.
-- Confirm that the README paths match the files included in the repository.
-
----
-
-## Licence
-
-This repository was created for academic demonstration and assessment purposes. Add the licence required by your institution or project supervisor before publishing the repository publicly.
-
----
-
-**StockSense v1.0 — Spring Boot 3, Java 21, FastAPI, MySQL and Random Forest forecasting**
+*StockSense v1.1 | Built with Spring Boot 3 + FastAPI + MySQL*

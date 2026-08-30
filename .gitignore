@@ -1,5 +1,10 @@
 # ── Maven ───────────────────────────────────────────────────
-spring-boot-backend/target/
+target/
+*/target/
+*.war
+*.jar
+!**/.mvn/wrapper/maven-wrapper.jar
+*.class
 spring-boot-backend/.mvn/wrapper/maven-wrapper.jar
 !spring-boot-backend/.mvn/wrapper/maven-wrapper.properties
 
@@ -26,9 +31,11 @@ fastapi-service/.pytest_cache/
 Thumbs.db
 desktop.ini
 
-# ── Uploads (user data — not in git) ────────────────────────
-spring-boot-backend/uploads/
-uploads/
+# ── Uploads (user data — keep the folders, ignore the files) ─
+spring-boot-backend/uploads/**
+!spring-boot-backend/uploads/
+!spring-boot-backend/uploads/*/
+!spring-boot-backend/uploads/**/.gitkeep
 
 # ── Logs ────────────────────────────────────────────────────
 *.log

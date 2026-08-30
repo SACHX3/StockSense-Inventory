@@ -7,12 +7,13 @@ import os
 import logging
 from pathlib import Path
 from typing import Optional
+from utils.tesseract_compat import load_pytesseract
 
 logger = logging.getLogger(__name__)
 
 # ── Try to import OCR libraries ──────────────────────────────────────────────
 try:
-    import pytesseract
+    pytesseract = load_pytesseract()
     from PIL import Image, ImageEnhance, ImageFilter
     TESSERACT_AVAILABLE = True
     # Windows path - set tesseract executable

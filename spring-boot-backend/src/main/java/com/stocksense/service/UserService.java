@@ -5,6 +5,7 @@ import com.stocksense.entity.Role;
 import com.stocksense.entity.User;
 import com.stocksense.repository.RoleRepository;
 import com.stocksense.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

@@ -1,7 +1,8 @@
 package com.stocksense.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.stocksense.converter.PaymentMethodConverter;
+import jakarta.persistence.Convert;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -50,7 +51,11 @@ public class Sale {
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @Enumerated(EnumType.STRING)
+    // Custom converter instead of @Enumerated(EnumType.STRING): a single row with
+    // an unrecognized payment_method value (legacy data, typo, etc.) used to throw
+    // and break the entire /sales page with a 500 - this converter degrades that
+    // one row to CASH instead of crashing the whole list. See PaymentMethodConverter.
+    @Convert(converter = PaymentMethodConverter.class)
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod = PaymentMethod.CASH;
 
