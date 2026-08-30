@@ -1,9 +1,13 @@
-# 🏪 StockSense
+
+
+<p align="center"><img alt="Screening dashboard" border="0" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjEB58d-ULW-o-lYb86KZSTMumx5EL1iHvpZzLCQBEDOBqF5oHRN3ZlcrP3I5Eai2Pq1Z8HENoY_Q_gszLj7_ItCjg9Q2ya_flJejHGglE79kuwuUl-6tb7C3MSBzOvMCjnCrDfjtV9tO1i8MUJWHJMEc55vV23XVyNrkdaKkqL-PKEAgYDbKk8HWcCxxo/s1536/4da056d1-8e0f-4ccb-ba86-6dca1471faec.png"/></p>
+
+
 ## AI-Powered Inventory Management & Demand Forecasting with OCR
 
 ---
 
-## 📋 System Requirements
+## System Requirements
 
 | Component | Requirement |
 |-----------|------------|
@@ -16,7 +20,7 @@
 
 ---
 
-## 🚀 Quick Start (Step by Step)
+## Quick Start (Step by Step)
 
 ### STEP 1: Database Setup
 
@@ -94,7 +98,7 @@ brew install tesseract
 
 ---
 
-## 🔐 Default Login Credentials
+## Default Login Credentials
 
 | Role | Username | Password | Access |
 |------|----------|----------|--------|
@@ -104,7 +108,7 @@ brew install tesseract
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
 Browser
@@ -122,7 +126,7 @@ Spring Boot (Port 8080)
 
 ---
 
-## 👤 Role-Based Access Control
+## Role-Based Access Control
 
 ### Admin (ROLE_ADMIN)
 - Full system access
@@ -149,7 +153,7 @@ Spring Boot (Port 8080)
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 smart-inventory/
@@ -201,9 +205,9 @@ smart-inventory/
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-### ✅ AI Demand Forecasting
+### AI Demand Forecasting
 - Random Forest ML model
 - Historical sales analysis
 - Confidence intervals
@@ -211,27 +215,27 @@ smart-inventory/
 - Auto-retrains on demand
 - Fallback to moving average
 
-### ✅ OCR Invoice Processing
+### OCR Invoice Processing
 - Upload JPG/PNG/PDF invoices
 - Automatic text extraction
 - Smart product/price detection
 - Manual validation workflow
 - One-click inventory update
 
-### ✅ POS Sales System
+### POS Sales System
 - Real-time product search
 - Cart management
 - Auto stock deduction
 - Receipt generation
 - Multiple payment methods
 
-### ✅ Inventory Management
+### Inventory Management
 - Stock IN/OUT tracking
 - Low stock alerts
 - Full audit trail
 - Adjustment history
 
-### ✅ Role-Based Security
+### Role-Based Security
 - 3 distinct roles
 - Spring Security integration
 - Session management
@@ -239,7 +243,7 @@ smart-inventory/
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Change Database Password
 Edit `spring-boot-backend/src/main/resources/application.properties`:
@@ -259,7 +263,7 @@ app.upload.dir=uploads
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
@@ -271,7 +275,7 @@ app.upload.dir=uploads
 
 ---
 
-## 📊 API Endpoints (FastAPI)
+## API Endpoints (FastAPI)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -284,7 +288,7 @@ app.upload.dir=uploads
 
 ---
 
-## 🎓 Final Year Project Notes
+## Final Year Project Notes
 
 This system demonstrates:
 - **Enterprise Architecture:** Layered design, DTO pattern, repository pattern
