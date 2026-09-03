@@ -37,8 +37,14 @@ public class ReportExportService {
     private PdfPageEventHelper storeLetterhead(String reportTitle, String metaLine) {
         com.stocksense.entity.StoreProfile s;
         try {
-            s = storeProfileService.get();
+            // Explicit null guard rather than relying on the catch below: the service
+            // is absent in unit tests, and "no store configured" is a normal state,
+            // not an exception worth swallowing.
+            s = storeProfileService == null ? null : storeProfileService.get();
         } catch (Exception e) {
+            s = null;
+        }
+        if (s == null) {
             return letterheadEvent(reportTitle, metaLine);   // defaults
         }
         // Sub-line: tagline, phone and address, skipping whatever is blank so an

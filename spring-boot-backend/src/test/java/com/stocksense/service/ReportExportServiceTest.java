@@ -15,7 +15,11 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("Report Export Service Tests")
 class ReportExportServiceTest {
 
-    private final ReportExportService exportService = new ReportExportService();
+    // ReportExportService now takes a StoreProfileService so PDF exports can print
+    // the shop's letterhead. These tests only assert on CSV content and on the PDF
+    // magic bytes, so a null collaborator is enough: storeLetterhead() falls back to
+    // the built-in defaults when the store profile cannot be read.
+    private final ReportExportService exportService = new ReportExportService(null);
 
     @Test
     @DisplayName("TC70 - report export: creates a readable sales CSV")

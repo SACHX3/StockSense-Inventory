@@ -31,8 +31,11 @@ public class DashboardExportService {
     private PdfPageEventHelper storeLetterhead(String reportTitle, String metaLine) {
         com.stocksense.entity.StoreProfile s;
         try {
-            s = storeProfileService.get();
+            s = storeProfileService == null ? null : storeProfileService.get();
         } catch (Exception e) {
+            s = null;
+        }
+        if (s == null) {
             return letterheadEvent(reportTitle, metaLine);   // defaults
         }
         // Sub-line: tagline, phone and address, skipping whatever is blank so an
