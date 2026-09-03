@@ -16,6 +16,7 @@
   --good:#17b26a; --good-soft:#e7f9ef;
   --warn:#f0a71b; --warn-soft:#fef3da;
   --bad:#f04438; --bad-soft:#feeceb;
+  --sidebar-bg:#ffffff;
   --radius:16px; --radius-sm:12px;
   --shadow:0 1px 2px rgba(23,21,34,.03), 0 10px 28px -14px rgba(109,63,216,.14);
 
@@ -26,25 +27,33 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:#0a0a12; --surface:#15151f; --surface-2:#1c1c29; --border:rgba(255,255,255,.08);
-    --text:#f4f2ff; --text-2:#b3aed9; --text-3:#7c76a8;
-    --primary:#9d6bff; --primary-2:#b98cff; --primary-soft:rgba(157,107,255,.16);
-    --accent:#ff9a54; --accent-soft:rgba(255,154,84,.14);
-    --good:#3ddc91; --good-soft:rgba(61,220,145,.14);
-    --warn:#ffc453; --warn-soft:rgba(255,196,83,.14);
-    --bad:#ff6b8b; --bad-soft:rgba(255,107,139,.14);
-    --shadow:0 1px 2px rgba(0,0,0,.2), 0 12px 32px -16px rgba(0,0,0,.6);
+    /* FlowMind-style dark palette: near-black blue-tinted ground, panels that
+       sit just above it, violet primary and cool neutral text. */
+    --bg:#070912; --surface:#0f1219; --surface-2:#161a23;
+    --sidebar-bg:#0a0c14;
+    --border:rgba(255,255,255,.07);
+    --text:#f7f9fc; --text-2:#97a1b6; --text-3:#68718a;
+    --primary:#8b5cf6; --primary-2:#a78bfa; --primary-soft:rgba(139,92,246,.16);
+    --accent:#22d3ee; --accent-soft:rgba(34,211,238,.14);
+    --good:#22c55e; --good-soft:rgba(34,197,94,.14);
+    --warn:#f5a524; --warn-soft:rgba(245,165,36,.14);
+    --bad:#f43f5e; --bad-soft:rgba(244,63,94,.15);
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 18px 40px -20px rgba(0,0,0,.85);
   }
 }
 :root[data-theme="dark"] {
-  --bg:#0a0a12; --surface:#15151f; --surface-2:#1c1c29; --border:rgba(255,255,255,.08);
-  --text:#f4f2ff; --text-2:#b3aed9; --text-3:#7c76a8;
-  --primary:#9d6bff; --primary-2:#b98cff; --primary-soft:rgba(157,107,255,.16);
-  --accent:#ff9a54; --accent-soft:rgba(255,154,84,.14);
-  --good:#3ddc91; --good-soft:rgba(61,220,145,.14);
-  --warn:#ffc453; --warn-soft:rgba(255,196,83,.14);
-  --bad:#ff6b8b; --bad-soft:rgba(255,107,139,.14);
-  --shadow:0 1px 2px rgba(0,0,0,.2), 0 12px 32px -16px rgba(0,0,0,.6);
+  /* FlowMind-style dark palette: near-black blue-tinted ground, panels that
+     sit just above it, violet primary and cool neutral text. */
+  --bg:#070912; --surface:#0f1219; --surface-2:#161a23;
+  --sidebar-bg:#0a0c14;
+  --border:rgba(255,255,255,.07);
+  --text:#f7f9fc; --text-2:#97a1b6; --text-3:#68718a;
+  --primary:#8b5cf6; --primary-2:#a78bfa; --primary-soft:rgba(139,92,246,.16);
+  --accent:#22d3ee; --accent-soft:rgba(34,211,238,.14);
+  --good:#22c55e; --good-soft:rgba(34,197,94,.14);
+  --warn:#f5a524; --warn-soft:rgba(245,165,36,.14);
+  --bad:#f43f5e; --bad-soft:rgba(244,63,94,.15);
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 18px 40px -20px rgba(0,0,0,.85);
 }
 
 /* ── 2. Base / reset ───────────────────────────────────────────────────── */
@@ -113,7 +122,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
   position: sticky;
   top: 0;
   height: 100vh;
-  background: var(--surface);
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -352,12 +361,61 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .qs-dropdown-foot:hover { background: var(--surface-2); }
 
 .topbar-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
-.system-live-badge { display: flex; align-items: center; gap: 8px; padding: 7px 14px 7px 11px; border-radius: 20px; background: var(--good-soft); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent); }
-.system-live-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; box-shadow: 0 0 8px 1px color-mix(in srgb, var(--good) 70%, transparent); }
-.system-live-dot::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1.5px solid var(--good); opacity: .7; animation: sysLivePulse 1.8s ease-out infinite; }
-@keyframes sysLivePulse { 0% { transform: scale(.5); opacity: .8; } 100% { transform: scale(1.8); opacity: 0; } }
-.system-live-text { font-size: 12px; font-weight: 700; color: var(--good); letter-spacing: .01em; }
+/* Topbar status pill - "Online" / "Offline" / "Checking", driven by the real
+   AI-service health poll in stocksense.js. Black gradient ground in both themes:
+   this reads as a lit indicator, and each state colour clears 7:1 on near-black.
+   Colours are fixed hexes on purpose, NOT theme tokens - the badge is meant to
+   look identical in light and dark rather than follow the palette.
+   Colour never carries the meaning alone - the word beside the dot does. */
+.system-live-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1b1b24 0%, #0a0a12 55%, #14141d 100%);
+  border: 1px solid var(--sysled-dim);
 
+  /* One state colour, four derived tints - so a state change needs one line.
+     --sysled-ring is the starting colour of the expanding ping ring. */
+  --sysled: #3ddc91;
+  --sysled-dim: rgba(61, 220, 145, .28);
+  --sysled-glow: rgba(61, 220, 145, .30);
+  --sysled-ring: rgba(61, 220, 145, .55);
+}
+.system-live-badge.is-offline {
+  --sysled: #ff6b6b;
+  --sysled-dim: rgba(255, 107, 107, .30);
+  --sysled-glow: rgba(255, 107, 107, .28);
+  --sysled-ring: rgba(255, 107, 107, .55);
+}
+.system-live-badge.is-checking {
+  --sysled: #b3aed9;
+  --sysled-dim: rgba(179, 174, 217, .26);
+  --sysled-glow: rgba(179, 174, 217, .20);
+  --sysled-ring: rgba(179, 174, 217, .50);
+}
+
+/* Same ping as the AI status panel's result dot (aiPingOk): a ring of expanding
+   box-shadow spread, 1.8s ease-out. Identical timing and easing on purpose - the
+   two indicators report the same thing and should beat as one. */
+.system-live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sysled); flex: none;
+  box-shadow: 0 0 0 0 var(--sysled-ring);
+  animation: sysLedPing 1.8s ease-out infinite;
+}
+.system-live-text {
+  font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--sysled); text-shadow: 0 0 8px var(--sysled-glow);
+}
+
+/* The ring is pure box-shadow spread - no width/height, no transform - so it can
+   never reflow the topbar, and it needs no ::after pseudo-element to carry it.
+   currentColor is not usable in box-shadow, hence the explicit ring tints. */
+@keyframes sysLedPing {
+  0%   { box-shadow: 0 0 0 0 var(--sysled-ring); }
+  70%  { box-shadow: 0 0 0 4.5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 .icon-btn {
   width: 36px; height: 36px;
   border-radius: 10px;
@@ -543,6 +601,25 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .ai-action-btn.stop { background: var(--bad-soft); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 30%, var(--border)); }
 .ai-action-btn.stop:hover { background: var(--bad); color: #fff; }
 .ai-action-btn:disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+
+/* Capability list in the AI status panel: what the built-in engine can do. */
+.ai-feature-list {
+  padding: 2px 14px 12px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.ai-feature {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .78rem; font-weight: 600; color: var(--text-2);
+}
+.ai-feature svg { width: 14px; height: 14px; flex: 0 0 14px; }
+.ai-feature.ok { color: var(--text-2); }
+.ai-feature.ok svg { color: var(--good); }
+.ai-feature.warn { color: var(--text-3); }
+.ai-feature.warn svg { color: var(--warn); }
+.ai-action-btn:not(.start):not(.stop) {
+  background: var(--surface-2); color: var(--text-2); border-color: var(--border);
+}
+.ai-action-btn:not(.start):not(.stop):hover { background: var(--border); }
 .notif-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; border-bottom: 1px solid var(--border);
@@ -677,6 +754,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 }
 .btn-ghost:hover, .btn-outline-secondary:hover, .btn-outline-primary:hover,
 .btn-outline-info:hover, .btn-secondary:hover { background: var(--surface-2); }
+
+/* Range suffix inside the dashboard Export button (" Export - 30d"): shows which
+   period the exported PDF will cover, independent of any chart's own range. */
+.btn-ghost-suffix { color: var(--text-2); font-weight: 500; }
 .btn-outline-danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, var(--border)); }
 .btn-outline-danger:hover { background: var(--bad-soft); }
 .btn-outline-warning { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, var(--border)); }
@@ -818,6 +899,32 @@ input[type="file"].form-control { padding: 7px 10px; }
   background: radial-gradient(600px circle at 85% -10%, rgba(255,255,255,.18), transparent 60%);
   pointer-events: none;
 }
+/* Dark mode: the hero becomes a dark panel with a violet glow instead of a
+   bright purple slab, so it sits in the same family as the other cards. */
+:root[data-theme="dark"] .hero {
+  background:
+    radial-gradient(900px circle at 88% -30%, rgba(139,92,246,.35), transparent 60%),
+    linear-gradient(120deg, #12132a 0%, #171335 48%, #1d1640 100%);
+  border: 1px solid rgba(139,92,246,.22);
+  box-shadow: 0 22px 54px -26px rgba(0,0,0,.9);
+}
+:root[data-theme="dark"] .hero::after {
+  background: radial-gradient(620px circle at 85% -10%, rgba(167,139,250,.14), transparent 62%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hero {
+    background:
+      radial-gradient(900px circle at 88% -30%, rgba(139,92,246,.35), transparent 60%),
+      linear-gradient(120deg, #12132a 0%, #171335 48%, #1d1640 100%);
+    border: 1px solid rgba(139,92,246,.22);
+    box-shadow: 0 22px 54px -26px rgba(0,0,0,.9);
+  }
+  :root:not([data-theme="light"]) .hero::after {
+    background: radial-gradient(620px circle at 85% -10%, rgba(167,139,250,.14), transparent 62%);
+  }
+}
+
 .hero-holo{position:absolute;inset:0;pointer-events:none;overflow:hidden;-webkit-mask-image:radial-gradient(70% 110% at 80% 30%, #000 0%, transparent 85%);mask-image:radial-gradient(70% 110% at 80% 30%, #000 0%, transparent 85%)}
 .hero-holo-grid{position:absolute;inset:-20% -10%;background-image:linear-gradient(rgba(140,240,255,.42) 1px, transparent 1px),linear-gradient(90deg, rgba(140,240,255,.42) 1px, transparent 1px);background-size:26px 26px;transform:perspective(340px) rotateX(58deg);animation:heroHoloDrift 6s linear infinite;opacity:.9}
 @keyframes heroHoloDrift{0%{background-position:0 0, 0 0}100%{background-position:0 52px, 26px 0}}
@@ -883,12 +990,18 @@ input[type="file"].form-control { padding: 7px 10px; }
   color: #fff; flex-shrink: 0;
   box-shadow: 0 6px 16px -6px var(--glow, transparent);
 }
-.kpi-icon svg { width: 18px; height: 18px; }
+/* icons.js gives every shimmed icon an inline width:1em;height:1em, and an
+   inline style beats a stylesheet rule - so the size has to come from
+   font-size. width/height kept as a fallback for hand-written SVGs. */
+.kpi-icon svg { width: 18px; height: 18px; font-size: 18px; }
 .kpi-icon i { font-size: 18px; line-height: 1; }
 .kpi-icon.blue { background: linear-gradient(135deg,#7c5cff,#a98cff); --glow: rgba(124,92,255,.55); }
 .kpi-icon.orange { background: linear-gradient(135deg,#ff8a3d,#ffb877); --glow: rgba(255,138,61,.5); }
 .kpi-icon.green { background: linear-gradient(135deg,#17b26a,#3ddc91); --glow: rgba(23,178,106,.5); }
 .kpi-icon.red { background: linear-gradient(135deg,#f0445e,#ff6b8b); --glow: rgba(240,68,94,.5); }
+/* Fifth badge colour - added for the OCR page, which has five stats where every
+   other KPI grid has four. */
+.kpi-icon.cyan { background: linear-gradient(135deg,#0e9daf,#22d3ee); --glow: rgba(34,211,238,.5); }
 
 .kpi-trend {
   display: inline-flex; align-items: center; gap: 3px;
@@ -1167,6 +1280,53 @@ body.login-body{min-height:100vh;display:flex;align-items:center;justify-content
     background-size:200% 200%;
     color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:44px;
   }
+
+  /* Dark mode: the brand panel drops to a deep navy-violet with a glow rather
+     than a bright purple slab, matching the dashboard hero and the rest of the
+     dark palette. Only the hard-coded gradient needs overriding - everything
+     else on this page already reads from the design tokens. */
+  :root[data-theme="dark"] .login-brand-side {
+    background:
+      radial-gradient(760px circle at 80% -20%, rgba(139,92,246,.34), transparent 62%),
+      linear-gradient(150deg, #0d0f20 0%, #14123099 45%, #1b1642 100%);
+    background-color: #0c0e1c;
+    background-size: 200% 200%;
+    border-right: 1px solid rgba(139,92,246,.18);
+  }
+  :root[data-theme="dark"] .login-wrap {
+    border: 1px solid var(--border);
+    box-shadow: 0 30px 70px -30px rgba(0,0,0,.95);
+  }
+  :root[data-theme="dark"] .login-form-side { background: var(--surface); }
+  :root[data-theme="dark"] .login-glow::before {
+    background: radial-gradient(circle, rgba(167,139,250,.22), transparent 70%);
+  }
+  :root[data-theme="dark"] .login-clouds .cloud {
+    background: radial-gradient(circle, rgba(167,139,250,.12), rgba(255,255,255,0) 70%);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .login-brand-side {
+      background:
+        radial-gradient(760px circle at 80% -20%, rgba(139,92,246,.34), transparent 62%),
+        linear-gradient(150deg, #0d0f20 0%, #14123099 45%, #1b1642 100%);
+      background-color: #0c0e1c;
+      background-size: 200% 200%;
+      border-right: 1px solid rgba(139,92,246,.18);
+    }
+    :root:not([data-theme="light"]) .login-wrap {
+      border: 1px solid var(--border);
+      box-shadow: 0 30px 70px -30px rgba(0,0,0,.95);
+    }
+    :root:not([data-theme="light"]) .login-form-side { background: var(--surface); }
+    :root:not([data-theme="light"]) .login-glow::before {
+      background: radial-gradient(circle, rgba(167,139,250,.22), transparent 70%);
+    }
+    :root:not([data-theme="light"]) .login-clouds .cloud {
+      background: radial-gradient(circle, rgba(167,139,250,.12), rgba(255,255,255,0) 70%);
+    }
+  }
+
   @media (max-width:1024px){.login-brand-side{padding:36px}}
   @media (max-width:920px){.login-brand-side{display:none}}
 
@@ -1549,6 +1709,21 @@ small, .small { font-size: .8em; }
 .spinner-border-sm { width: 1rem; height: 1rem; border-width: 2px; }
 @keyframes ss-spin { to { transform: rotate(360deg); } }
 
+/* Spinning state for an inline SVG icon inside a button (Retrain Model, etc.).
+   transform-box/transform-origin are required: without them an SVG rotates about
+   the origin of its viewBox coordinate system, not its own centre, and the icon
+   visibly orbits instead of spinning in place. */
+svg.spinning {
+  animation: ss-spin .8s linear infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+button.is-busy { opacity: .75; cursor: progress; }
+button.is-busy:disabled { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  svg.spinning { animation-duration: 2.4s; }
+}
+
 /* ── AI Forecast card + Sales/Stock movement grid (dashboard) ─────────── */
 .dash-grid-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
 @media (max-width: 1000px) { .dash-grid-2 { grid-template-columns: 1fr; } }
@@ -1559,6 +1734,51 @@ small, .small { font-size: .8em; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .link-btn,
   :root:not([data-theme="light"]) .nav-item.active { color: #ffffff; }
+}
+
+/* ── Dark theme: primary-coloured TEXT becomes white ──────────────────────
+   In dark mode --primary is a violet (#8b5cf6). Used as a text colour on the
+   near-black ground it reads as muddy purple sitting beside otherwise white
+   copy, so these headings and labels switch to white.
+
+   Pills, badges, tags, chips and icons are deliberately left alone: there the
+   colour carries meaning (state, category, brand), not just emphasis. */
+:root[data-theme="dark"] :is(.link-btn,
+  .nav-item.active,
+  .text-primary,
+  .text-info,
+  .fc-intro-banner b,
+  .ol-intro-banner b,
+  .ol-flow-label,
+  .ol-ftext,
+  .section-label,
+  .report-card-go,
+  .preview-price,
+  .oc-browse,
+  .rt-details > summary,
+  .builder-section-title) { color: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.link-btn,
+  .nav-item.active,
+  .text-primary,
+  .text-info,
+  .fc-intro-banner b,
+  .ol-intro-banner b,
+  .ol-flow-label,
+  .ol-ftext,
+  .section-label,
+  .report-card-go,
+  .preview-price,
+  .oc-browse,
+  .rt-details > summary,
+  .builder-section-title) { color: #ffffff; }
+}
+
+/* .text-primary / .text-info are declared with !important further up, so the
+   rule above cannot win against them without matching that specificity. */
+:root[data-theme="dark"] :is(.text-primary, .text-info) { color: #ffffff !important; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.text-primary, .text-info) { color: #ffffff !important; }
 }
 .link-btn:hover { text-decoration: none; }
 
@@ -1658,3 +1878,70 @@ small, .small { font-size: .8em; }
 @media (max-width: 560px) {
   .ss-toast-stack { top: 12px; left: 12px; right: 12px; transform: none; max-width: none; width: auto; }
 }
+
+/* ── Training-run results panel (forecasting page, after Retrain Model) ──── */
+.rt-panel { margin-top: 16px; }
+.rt-stamp { font-size: 11.5px; font-weight: 500; color: var(--text-3); }
+
+.rt-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.rt-stat {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+.rt-stat b { display: block; font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.rt-stat span { display: block; margin-top: 3px; font-size: 11.5px; color: var(--text-2); }
+.rt-stat.good b { color: var(--good); }
+.rt-stat.warn b { color: var(--warn); }
+
+.rt-chart-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.rt-chart-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.rt-chart-sub { margin-top: 2px; font-size: 11.5px; color: var(--text-2); }
+.rt-select { min-width: 220px; }
+
+/* Fixed height so Chart.js has a box to fill; it is not auto-sized from content. */
+.rt-chart-wrap { position: relative; height: 340px; }
+@media (max-width: 700px) { .rt-chart-wrap { height: 260px; } }
+
+.rt-verdict {
+  margin-top: 14px; padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px; line-height: 1.6;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
+}
+.rt-verdict.good { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 30%, var(--border)); }
+.rt-verdict.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, var(--border)); }
+
+.rt-details { margin-top: 16px; }
+.rt-details > summary {
+  cursor: pointer; font-size: 12.5px; font-weight: 600;
+  color: var(--primary); padding: 6px 0; user-select: none;
+}
+/* Wide tables scroll inside their own box - the page body must never scroll sideways. */
+.rt-table-wrap { overflow-x: auto; margin-top: 8px; }
+.rt-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 640px; }
+.rt-table th {
+  text-align: left; font-weight: 600; color: var(--text-2);
+  padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.rt-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.rt-table tr:last-child td { border-bottom: none; }
+.rt-table tr.rt-skipped td { color: var(--text-3); font-style: italic; }
+
+.rt-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+/* Neutral tag = "matches baseline": deliberately not green. */
+.rt-tag { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.rt-tag.good { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.rt-tag.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }

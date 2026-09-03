@@ -96,6 +96,55 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * Permanently delete a user account.
+     *
+     * Three guards, in order:
+     *  1. You cannot delete yourself - that would log you out of an account you
+     *     can no longer sign back into.
+     *  2. You cannot delete the last remaining active admin, which would lock
+     *     every administrator out of the system with no way back in.
+     *  3. Users are referenced by sales, inventory logs, invoices and audit logs.
+     *     Deleting one that owns any history hits a foreign-key constraint, so we
+     *     translate that into a message telling the operator to deactivate instead
+     *     of showing them a raw SQL error.
+     */
+    @Transactional
+    public void delete(Long id, String currentUsername) {
+        User user = findById(id);
+
+        if (currentUsername != null && currentUsername.equals(user.getUsername())) {
+            throw new IllegalStateException("You cannot delete your own account.");
+        }
+
+        if (isAdmin(user) && Boolean.TRUE.equals(user.getIsActive()) && countActiveAdmins() <= 1) {
+            throw new IllegalStateException(
+                    "This is the last active administrator - deleting it would lock everyone out.");
+        }
+
+        String username = user.getUsername();
+        try {
+            userRepository.delete(user);
+            userRepository.flush();   // force the FK check now, inside this try
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalStateException(
+                    "\"" + username + "\" has sales, stock or invoice history recorded against them "
+                    + "and cannot be deleted. Deactivate the account instead - it keeps the history "
+                    + "intact and blocks any further sign-in.");
+        }
+        auditLogService.log("USER_DELETED", "User", id, "Deleted user: " + username);
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() != null && "ROLE_ADMIN".equals(user.getRole().getName());
+    }
+
+    private long countActiveAdmins() {
+        return userRepository.findAll().stream()
+                .filter(u -> isAdmin(u) && Boolean.TRUE.equals(u.getIsActive()))
+                .count();
+    }
+
     public List<Role> findAllRoles() {
         return roleRepository.findAll();
     }

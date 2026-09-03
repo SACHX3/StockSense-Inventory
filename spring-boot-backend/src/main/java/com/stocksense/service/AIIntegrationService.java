@@ -33,13 +33,21 @@ public class AIIntegrationService {
     private final InventoryService inventoryService;
     private final ObjectMapper objectMapper;
 
-    private RestTemplate restTemplate = createRestTemplate();
+    // Normal calls (predict, OCR, health): fail fast so a hung AI service never
+    // stalls a page load - the fallback forecast kicks in instead.
+    private RestTemplate restTemplate = createRestTemplate(Duration.ofSeconds(15));
 
-    private static RestTemplate createRestTemplate() {
+    // Retraining fits one Random Forest per product, so it is minutes-scale work,
+    // not seconds-scale. Reusing the 15s template made every retrain report
+    // "Read timed out" while FastAPI was still training happily in the background
+    // and went on to answer 200 OK to a client that had already walked away.
+    private RestTemplate retrainRestTemplate = createRestTemplate(Duration.ofMinutes(10));
+
+    private static RestTemplate createRestTemplate(Duration readTimeout) {
         org.springframework.http.client.SimpleClientHttpRequestFactory factory =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(15));
+        factory.setReadTimeout(readTimeout);
         return new RestTemplate(factory);
     }
 
@@ -79,11 +87,16 @@ public class AIIntegrationService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(trainingData, headers);
 
             ResponseEntity<Map<String, Object>> response = postJson(
-                    aiServiceUrl + "/api/forecast/retrain", entity);
+                    aiServiceUrl + "/api/forecast/retrain", entity, retrainRestTemplate);
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 return response.getBody();
             }
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.warn("AI retrain timed out or could not be reached: {}", e.getMessage());
+            return Map.of("status", "error",
+                    "message", "Retraining is taking longer than expected. It may still be "
+                             + "running in the AI service - check ai-service.log, then reload.");
         } catch (Exception e) {
             log.warn("AI retrain failed: {}", e.getMessage());
         }
@@ -112,7 +125,13 @@ public class AIIntegrationService {
     /** Keeps the RestTemplate wire type as Map.class while exposing a typed response. */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private ResponseEntity<Map<String, Object>> postJson(String url, HttpEntity<?> request) {
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+        return postJson(url, request, restTemplate);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private ResponseEntity<Map<String, Object>> postJson(String url, HttpEntity<?> request,
+                                                        RestTemplate template) {
+        ResponseEntity<Map> response = template.postForEntity(url, request, Map.class);
         return new ResponseEntity<>((Map<String, Object>) response.getBody(),
                 response.getHeaders(), response.getStatusCode());
     }
@@ -278,12 +297,16 @@ public class AIIntegrationService {
     // ============ HELPERS ============
 
     private List<Map<String, Object>> buildSalesData(Long productId) {
+        return buildSalesData(productId, 6);
+    }
+
+    private List<Map<String, Object>> buildSalesData(Long productId, int months) {
         // Real day-by-day sold quantity for this product, which is what the FastAPI
         // Random Forest model actually needs to train on. Previously this sent a single
         // placeholder {"product_id": X, "period_days": 180} entry, which meant the AI
         // service never had enough real records (needs > 5) to use the ML model and
         // always fell back to a synthetic, product-id-seeded forecast.
-        LocalDateTime start = LocalDateTime.now().minusMonths(6);
+        LocalDateTime start = LocalDateTime.now().minusMonths(months);
         List<Object[]> rows = saleItemRepository.findDailySalesForProduct(productId, start);
 
         Map<LocalDate, Integer> qtyByDate = new HashMap<>();
@@ -324,15 +347,50 @@ public class AIIntegrationService {
     }
 
     private Map<String, Object> buildAllSalesData() {
-        Map<String, Object> data = new HashMap<>();
+        // One grouped query for the whole catalogue instead of one per product.
+        // The previous version called buildSalesData(productId) in a loop, which
+        // issued a separate findDailySalesForProduct query for each of ~50 products
+        // before the retrain request was even sent.
         LocalDateTime start = LocalDateTime.now().minusMonths(12);
-        List<Object[]> history = saleItemRepository.findProductSalesHistory(start);
-        // FastAPI's RetrainRequest expects sales_history to be a JSON object.
-        // Sending a display string such as "15 records" causes a Pydantic 422
-        // validation error before the retraining endpoint can run.
+        List<Object[]> rows = saleItemRepository.findDailySalesForAllProducts(start);
+
+        // product id -> (date -> qty), preserving insertion order for stable output
+        Map<Long, Map<LocalDate, Integer>> byProduct = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            if (row[0] == null) continue;
+            Long productId = ((Number) row[0]).longValue();
+            LocalDate date = toLocalDate(row[1]);
+            if (date == null) continue;
+            int qty = row[2] != null ? ((Number) row[2]).intValue() : 0;
+            byProduct.computeIfAbsent(productId, k -> new LinkedHashMap<>()).put(date, qty);
+        }
+
+        Map<String, Object> products = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now();
+        for (Map.Entry<Long, Map<LocalDate, Integer>> e : byProduct.entrySet()) {
+            Map<LocalDate, Integer> qtyByDate = e.getValue();
+            if (qtyByDate.isEmpty()) continue;
+
+            // Fill the gaps: a day with no sale is a real zero, and dropping it would
+            // teach the model that demand is never zero.
+            LocalDate cursor = qtyByDate.keySet().stream().min(LocalDate::compareTo).orElse(today);
+            List<Map<String, Object>> series = new ArrayList<>();
+            while (!cursor.isAfter(today)) {
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("date", cursor.toString());
+                entry.put("quantity", qtyByDate.getOrDefault(cursor, 0));
+                series.add(entry);
+                cursor = cursor.plusDays(1);
+            }
+            products.put(String.valueOf(e.getKey()), series);
+        }
+
         Map<String, Object> salesHistory = new HashMap<>();
-        salesHistory.put("record_count", history.size());
+        salesHistory.put("products", products);
+        salesHistory.put("product_count", products.size());
         salesHistory.put("period", "12 months");
+
+        Map<String, Object> data = new HashMap<>();
         data.put("sales_history", salesHistory);
         data.put("period", "12 months");
         return data;
@@ -343,6 +401,20 @@ public class AIIntegrationService {
         try {
             Object itemsObj = result.get("items");
             if (itemsObj instanceof List<?> itemsList) {
+                // Re-processing an invoice replaces its extracted items, it does not add
+                // to them. Without this the "Re-process OCR" button appended a second
+                // (then third...) copy of every line, and the totals doubled with it.
+                //
+                // Guarded on isApplied: once an invoice has been applied to inventory its
+                // items are the audit trail of what moved stock, so they must never be
+                // deleted out from under it.
+                if (Boolean.TRUE.equals(invoice.getIsApplied())) {
+                    log.warn("Invoice {} is already applied - keeping existing items, skipping re-parse",
+                            invoice.getId());
+                    return;
+                }
+                invoiceItemRepository.deleteByInvoiceId(invoice.getId());
+                invoiceItemRepository.flush();
                 for (Object itemObj : itemsList) {
                     if (itemObj instanceof Map<?, ?> itemMap) {
                         InvoiceItem item = new InvoiceItem();
@@ -430,6 +502,11 @@ public class AIIntegrationService {
                         fr.setProduct(product);
                         if (pred.get("date") != null) fr.setForecastDate(LocalDate.parse(pred.get("date").toString()));
                         if (pred.get("predicted_demand") != null) fr.setPredictedDemand(((Number) pred.get("predicted_demand")).intValue());
+                        if (pred.get("predicted_demand_exact") != null) {
+                            fr.setPredictedDemandExact(new BigDecimal(pred.get("predicted_demand_exact").toString()));
+                        } else if (pred.get("predicted_demand") != null) {
+                            fr.setPredictedDemandExact(new BigDecimal(pred.get("predicted_demand").toString()));
+                        }
                         if (pred.get("confidence_lower") != null) fr.setConfidenceLower(((Number) pred.get("confidence_lower")).intValue());
                         if (pred.get("confidence_upper") != null) fr.setConfidenceUpper(((Number) pred.get("confidence_upper")).intValue());
                         if (result.get("model") != null) fr.setModelVersion(result.get("model").toString());

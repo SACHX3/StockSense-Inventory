@@ -21,6 +21,7 @@
 .ol-stagger > *:nth-child(2){animation-delay:.08s}
 .ol-stagger > *:nth-child(3){animation-delay:.14s}
 
+
 .ol-intro-banner{position:relative;overflow:hidden;display:flex;align-items:center;gap:15px;background:linear-gradient(135deg, var(--primary-soft, rgba(109,63,216,.08)), color-mix(in srgb, var(--primary-2, var(--primary)) 12%, var(--primary-soft, rgba(109,63,216,.08))));border:1px solid var(--border);border-radius:16px;padding:16px 22px;margin-bottom:22px;flex-wrap:wrap}
 .ol-intro-banner::before{content:"";position:absolute;top:-40%;right:-8%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%);pointer-events:none}
 .ol-flow-label{position:relative;font-size:12px;font-weight:800;color:var(--primary);white-space:nowrap;display:flex;align-items:center;gap:6px}
@@ -32,23 +33,14 @@
 .ol-flow-item span.ol-ftext{font-size:12px;font-weight:700;color:var(--primary)}
 .ol-flow-arrow{width:12px;height:12px;color:var(--primary-2, var(--primary));flex:none}
 
-.ol-stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
-@media (max-width:900px){.ol-stats-grid{grid-template-columns:repeat(2,1fr)}}
-.ol-stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow, 0 1px 2px rgba(0,0,0,.04));padding:18px 14px;text-align:center;transition:box-shadow .25s ease,border-color .25s ease}
-.ol-stat-card:hover{box-shadow:0 4px 8px rgba(23,21,34,.04), 0 18px 40px -18px color-mix(in srgb, var(--primary) 30%, transparent);border-color:color-mix(in srgb, var(--primary) 22%, var(--border))}
-.ol-stat-card .ol-sicon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 9px}
-.ol-stat-card .ol-sicon svg{width:17px;height:17px}
-.ol-stat-card .ol-sval{font-size:22px;font-weight:800;line-height:1;letter-spacing:-.02em;color:var(--text)}
-.ol-stat-card .ol-slabel{font-size:11px;color:var(--text-3);margin-top:6px;font-weight:600}
-.ol-si-primary{background:var(--primary-soft, rgba(109,63,216,.08));color:var(--primary)}
-.ol-si-good{background:rgba(23,177,106,.1);color:var(--good)}
-.ol-si-warn{background:rgba(240,167,27,.1);color:var(--warn)}
-.ol-si-bad{background:rgba(240,68,56,.1);color:var(--bad)}
-.ol-si-info{background:rgba(59,130,246,.1);color:#3b82f6}
+/* The shared .kpi-grid is four columns; this page has five stats. */
+.ol-kpi-grid{grid-template-columns:repeat(5,1fr);margin-bottom:22px}
+@media (max-width:1200px){.ol-kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:760px){.ol-kpi-grid{grid-template-columns:repeat(2,1fr)}}
 
 .ol-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow, 0 1px 2px rgba(0,0,0,.04));overflow:hidden;margin-bottom:18px;transition:box-shadow .25s ease,border-color .25s ease}
 .ol-panel:hover{box-shadow:0 4px 8px rgba(23,21,34,.04), 0 18px 40px -18px color-mix(in srgb, var(--primary) 30%, transparent);border-color:color-mix(in srgb, var(--primary) 22%, var(--border))}
-.ol-panel-head{display:flex;align-items:center;gap:9px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.ol-panel-head{display:flex;align-items:center;gap:9px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--surface)}
 .ol-panel-head svg{width:16px;height:16px;color:var(--primary);flex:none}
 .ol-panel-head span{font-weight:700;font-size:13.5px;letter-spacing:-.01em;color:var(--text)}
 
@@ -126,6 +118,7 @@
         <div class="ol-flow-item"><span class="ol-fnum" style="background:var(--good)">4</span><span class="ol-ftext">Apply to Inventory</span></div>
       </div>
     </div>
+    </div>
 
     <!-- Empty State -->
     <div th:if="${invoices.isEmpty()}" class="ol-panel">
@@ -141,32 +134,35 @@
 
     <!-- Stats + Table -->
     <div th:unless="${invoices.isEmpty()}">
-      <div class="ol-stats-grid">
-        <div class="ol-stat-card">
-          <div class="ol-sicon ol-si-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
-          <div class="ol-sval" th:text="${invoices.totalElements}">0</div>
-          <div class="ol-slabel">Total Invoices</div>
+      <!-- Same card anatomy as the Reports page: kpi > kpi-top > kpi-icon,
+           then value, then label. -->
+      <div class="kpi-grid ol-kpi-grid">
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div></div>
+          <div class="kpi-value" th:text="${invoices.totalElements}">0</div>
+          <div class="kpi-label">Total Invoices</div>
         </div>
-        <div class="ol-stat-card">
-          <div class="ol-sicon ol-si-good"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
-          <div class="ol-sval" id="olAppliedCount">0</div>
-          <div class="ol-slabel">Applied</div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div></div>
+          <div class="kpi-value" id="olAppliedCount">0</div>
+          <div class="kpi-label">Applied</div>
         </div>
-        <div class="ol-stat-card">
-          <div class="ol-sicon ol-si-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-          <div class="ol-sval" id="olPendingCount">0</div>
-          <div class="ol-slabel">Pending</div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div></div>
+          <div class="kpi-value" id="olPendingCount">0</div>
+          <div class="kpi-label">Pending</div>
         </div>
-        <div class="ol-stat-card">
-          <div class="ol-sicon ol-si-bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
-          <div class="ol-sval" id="olPdfCount">0</div>
-          <div class="ol-slabel">PDF Files</div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div></div>
+          <div class="kpi-value" id="olPdfCount">0</div>
+          <div class="kpi-label">PDF Files</div>
         </div>
-        <div class="ol-stat-card">
-          <div class="ol-sicon ol-si-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>
-          <div class="ol-sval" id="olImageCount">0</div>
-          <div class="ol-slabel">Image Files</div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></div>
+          <div class="kpi-value" id="olImageCount">0</div>
+          <div class="kpi-label">Image Files</div>
         </div>
+      </div>
       </div>
 
       <div class="ol-panel">

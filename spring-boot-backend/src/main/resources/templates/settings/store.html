@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
+<th:block th:fragment="content">
+
+<div class="page-head">
+  <div class="page-head-title-row">
+    <div class="page-head-icon ph-dashboard"><i class="bi bi-shop"></i></div>
+    <div>
+      <h1>Store Details</h1>
+      <p>Your shop's name and contact details — printed as the letterhead on receipts</p>
+    </div>
+  </div>
+</div>
+
+<form th:action="@{/settings/store}" th:object="${store}" method="post" class="store-grid">
+
+  <div class="panel">
+    <div class="panel-head"><i class="bi bi-shop"></i><span>Identity</span></div>
+    <div class="panel-body store-fields">
+      <div class="field full">
+        <label class="form-label">Store name <span class="req">*</span></label>
+        <input type="text" th:field="*{storeName}" class="form-control" maxlength="200" required
+               placeholder="e.g. Sameera Super Mart"/>
+        <small>Printed large at the top of every receipt.</small>
+      </div>
+      <div class="field full">
+        <label class="form-label">Tagline</label>
+        <input type="text" th:field="*{tagline}" class="form-control" maxlength="200"
+               placeholder="e.g. Groceries &amp; Household"/>
+        <small>The smaller line under the store name. Leave blank to hide it.</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><i class="bi bi-telephone"></i><span>Contact</span></div>
+    <div class="panel-body store-fields">
+      <div class="field">
+        <label class="form-label">Phone number</label>
+        <input type="tel" th:field="*{phone}" class="form-control" maxlength="60"
+               placeholder="+94 11 000 0000"/>
+        <small>Shown on the receipt so customers can call you.</small>
+      </div>
+      <div class="field">
+        <label class="form-label">Email</label>
+        <input type="email" th:field="*{email}" class="form-control" maxlength="120"
+               placeholder="shop@example.com"/>
+      </div>
+      <div class="field full">
+        <label class="form-label">Address</label>
+        <textarea th:field="*{address}" class="form-control" rows="2" maxlength="300"
+                  placeholder="123 Main Street, Colombo"></textarea>
+      </div>
+      <div class="field">
+        <label class="form-label">Tax / VAT number</label>
+        <input type="text" th:field="*{taxNumber}" class="form-control" maxlength="60"/>
+        <small>Printed on the receipt only when set.</small>
+      </div>
+      <div class="field">
+        <label class="form-label">Receipt footer</label>
+        <input type="text" th:field="*{receiptFooter}" class="form-control" maxlength="200"
+               placeholder="Thank you for your purchase!"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="store-actions">
+    <button type="submit" class="btn-primary"><i class="bi bi-check-lg"></i> Save details</button>
+    <a th:href="@{/sales}" class="btn-ghost">Cancel</a>
+  </div>
+</form>
+
+<style>
+.store-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media (max-width:900px){.store-grid{grid-template-columns:1fr}}
+.store-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:600px){.store-fields{grid-template-columns:1fr}}
+.store-fields .field.full{grid-column:1/-1}
+.store-fields .form-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text-2)}
+.store-fields .req{color:var(--bad)}
+.store-fields small{display:block;margin-top:5px;font-size:11px;color:var(--text-3);line-height:1.5}
+.store-actions{grid-column:1/-1;display:flex;gap:10px;align-items:center}
+</style>
+
+</th:block>
+<th:block th:fragment="scripts"></th:block>
+</html>

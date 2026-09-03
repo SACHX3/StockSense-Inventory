@@ -39,6 +39,19 @@ public class ProductService {
         return productRepository.findLowStockProducts();
     }
 
+    /**
+     * The single definition of "the product that most needs attention": the low-stock
+     * item with the smallest quantity on hand.
+     *
+     * Both the dashboard's AI Forecast widget and the Forecasting page start from this,
+     * so they open on the SAME product and their demand-trend lines trace the same
+     * shape. Duplicating the rule in two places is exactly how they drifted apart.
+     */
+    public java.util.Optional<Product> findMostUrgentLowStock() {
+        return productRepository.findLowStockProducts().stream()
+                .min(java.util.Comparator.comparingInt(p -> p.getQuantity() == null ? 0 : p.getQuantity()));
+    }
+
     public List<Product> findAllActive() {
         return productRepository.findByIsActiveTrue();
     }

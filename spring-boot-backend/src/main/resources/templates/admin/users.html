@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       th:replace="~{fragments/layout :: layout(~{::content}, ~{::scripts})}">
 <th:block th:fragment="content">
 
@@ -90,6 +91,18 @@
                     <i th:classappend="${u.isActive} ? 'bi bi-pause-circle' : 'bi bi-play-circle'"></i>
                   </button>
                 </form>
+                <!-- Delete is admin-only (SecurityConfig already restricts /users/**;
+                     sec:authorize keeps the button itself out of the markup too) and is
+                     never offered on your own row - deleting yourself would sign you out
+                     of an account you could not sign back into. -->
+                <form sec:authorize="hasRole('ADMIN')"
+                      th:unless="${#authentication != null and u.username == #authentication.name}"
+                      th:action="@{'/users/delete/' + ${u.id}}" method="post" style="display:inline;"
+                      onsubmit="return confirm('Delete this user permanently?\n\nThis cannot be undone. If the user has sales or stock history, deactivate them instead.');">
+                  <button type="submit" class="icon-btn delete" title="Delete user">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
               </div>
             </td>
           </tr>
@@ -126,7 +139,10 @@
 .icon-btn{width:32px;height:32px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);display:inline-flex;align-items:center;justify-content:center;transition:background .18s,color .18s,border-color .18s,transform .12s}
 .icon-btn:hover{transform:translateY(-1px)}
 .icon-btn.edit:hover{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
-.icon-btn.deactivate:hover{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.icon-btn.deactivate:hover{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+/* Delete is the only destructive action here, so it is the only one wearing
+   the danger colour - deactivate is reversible and now reads as a warning. */
+.icon-btn.delete:hover{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
 .row-actions{display:flex;gap:7px;justify-content:flex-end}
 </style>
 <script>

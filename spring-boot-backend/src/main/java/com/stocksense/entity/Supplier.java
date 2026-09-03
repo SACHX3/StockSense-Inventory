@@ -41,6 +41,12 @@ public class Supplier {
     @Column(name = "payment_terms", length = 100)
     private String paymentTerms;
 
+    /** Working days between placing an order with this supplier and receiving it.
+     *  Used to turn "days until stockout" into an actual reorder deadline - 6 days
+     *  of stock is comfortable with a 2-day supplier and a crisis with a 10-day one. */
+    @Column(name = "lead_time_days")
+    private Integer leadTimeDays = 7;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

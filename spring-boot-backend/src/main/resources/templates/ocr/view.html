@@ -83,7 +83,7 @@
 .ov-items-count{font-size:12px;color:var(--text-3)}
 .ov-items-count b{color:var(--primary)}
 .ov-table-wrap{overflow-x:auto}
-#itemsTable{width:100%;border-collapse:collapse;min-width:760px}
+#itemsTable{width:100%;border-collapse:collapse;min-width:800px}
 #itemsTable thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--border)}
 #itemsTable tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle;color:var(--text)}
 #itemsTable tbody tr:last-child td{border-bottom:0}
@@ -94,7 +94,21 @@
 .ov-chk{width:16px;height:16px;accent-color:var(--primary)}
 .ov-name-input,.ov-qty-input{background:var(--surface-2);border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:12.5px;color:var(--text);transition:border-color .18s}
 .ov-name-input{min-width:160px;width:100%}
-.ov-qty-input{width:60px}
+/* The QTY cell needs a reserved, non-shrinking width. The name input is width:100%
+   in an auto-layout table, so it claims every spare pixel and the browser squeezes
+   the quantity column down to almost nothing - which is why the field looked like a
+   tiny empty box with the number clipped out of view. */
+.ov-qty-cell{width:104px;min-width:104px;white-space:nowrap}
+.ov-qty-input{
+  width:88px;min-width:88px;height:38px;
+  padding:6px 8px;
+  font-size:15px;font-weight:700;text-align:center;
+  font-variant-numeric:tabular-nums;
+  /* Native spinners steal ~16px of an already narrow field and clip 3-4 digit
+     quantities; the field is type=number so the keyboard/arrow keys still step it. */
+  -moz-appearance:textfield;appearance:textfield;
+}
+.ov-qty-input::-webkit-outer-spin-button,.ov-qty-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .ov-name-input:focus,.ov-qty-input:focus{outline:none;border-color:var(--primary);background:var(--surface)}
 .ov-linked-tag{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--good, #17b26a);margin-top:4px}
 .ov-linked-tag svg{width:10px;height:10px}
@@ -230,7 +244,7 @@
               <tr>
                 <th style="width:30px"><input type="checkbox" class="ov-chk" id="selectAll" onchange="toggleSelectAll(this)" th:if="${!invoice.isApplied}"/></th>
                 <th>Product Name</th>
-                <th style="width:64px">Qty</th>
+                <th class="ov-qty-cell">Qty</th>
                 <th style="width:100px">Unit Price</th>
                 <th style="width:100px">Total</th>
                 <th style="width:78px">Confidence</th>
@@ -263,11 +277,11 @@
                   </div>
                   <span th:if="${invoice.isApplied}" th:text="${item.productName ?: (item.product != null ? item.product.name : 'Unknown')}">Name</span>
                 </td>
-                <td>
-                  <input th:if="${!invoice.isApplied}" type="number" min="1"
+                <td class="ov-qty-cell">
+                  <input th:if="${!invoice.isApplied}" type="number" min="1" step="1"
                          th:id="'qty-' + ${item.id}"
                          th:value="${item.quantity ?: 1}"
-                         class="ov-qty-input"/>
+                         class="ov-qty-input" aria-label="Quantity"/>
                   <span th:if="${invoice.isApplied}" th:text="${item.quantity}">0</span>
                 </td>
                 <td th:text="${item.unitPrice != null ? 'Rs. ' + #numbers.formatDecimal(item.unitPrice, 1, 'COMMA', 2, 'POINT') : '-'}">-</td>

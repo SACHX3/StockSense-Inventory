@@ -30,7 +30,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            // CSRF is ON. Without it, any site the user visits while logged in could
+            // silently POST to /users/delete/{id}, /ocr/api/apply/{id} or /sales/create
+            // using their session cookie.
+            //
+            // Thymeleaf injects the hidden token into every th:action form automatically.
+            // The page's fetch() calls get it from the meta tags in layout.html, via the
+            // global wrapper in stocksense.js - so no individual call site had to change.
+            .csrf(org.springframework.security.config.Customizer.withDefaults())
 
             .authorizeHttpRequests(auth -> auth
                 // Public resources
@@ -42,7 +49,7 @@ public class SecurityConfig {
                 .requestMatchers("/login", "/error", "/access-denied").permitAll()
 
                 // Admin only pages
-                .requestMatchers("/users/**", "/audit/**").hasRole("ADMIN")
+                .requestMatchers("/users/**", "/audit/**", "/settings/**").hasRole("ADMIN")
 
                 // Admin + Inventory Manager
                 .requestMatchers(

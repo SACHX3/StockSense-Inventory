@@ -46,7 +46,29 @@ public final class PdfLetterheadUtil {
      * every page — via iText's PdfPageEventHelper, so it repeats automatically
      * across multi-page reports.
      */
+    /**
+     * Backwards-compatible overload: falls back to the product name when no store
+     * profile is supplied.
+     */
     public static PdfPageEventHelper letterheadEvent(String reportTitle, String metaLine) {
+        return letterheadEvent(reportTitle, metaLine,
+                "StockSense", "AI-Powered Inventory Management System",
+                "StockSense \u2014 AI-Powered Inventory Management System");
+    }
+
+    /**
+     * Letterhead for every exported PDF.
+     *
+     * @param storeName  the shop's name, from Store Details (/settings/store)
+     * @param storeSub   the smaller line under it - tagline, phone, address
+     * @param footerLine the line printed at the bottom of every page
+     */
+    public static PdfPageEventHelper letterheadEvent(String reportTitle, String metaLine,
+                                                     String storeName, String storeSub,
+                                                     String footerLine) {
+        final String name = (storeName == null || storeName.isBlank()) ? "StockSense" : storeName;
+        final String sub = storeSub == null ? "" : storeSub;
+        final String footer = (footerLine == null || footerLine.isBlank()) ? name : footerLine;
         return new PdfPageEventHelper() {
             @Override
             public void onEndPage(PdfWriter writer, Document document) {
@@ -76,9 +98,9 @@ public final class PdfLetterheadUtil {
 
                 try {
                     ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
-                            new Phrase("StockSense", FONT_TITLE), logoX + logoSize + 10, bandTop - 30, 0);
+                            new Phrase(name, FONT_TITLE), logoX + logoSize + 10, bandTop - 30, 0);
                     ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
-                            new Phrase("AI-Powered Inventory Management System", FONT_SUBTITLE),
+                            new Phrase(sub, FONT_SUBTITLE),
                             logoX + logoSize + 10, bandTop - 44, 0);
 
                     Font reportTitleFont = new Font(Font.FontFamily.HELVETICA, 12.5f, Font.BOLD, BaseColor.WHITE);
@@ -100,7 +122,7 @@ public final class PdfLetterheadUtil {
 
                 try {
                     ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
-                            new Phrase("StockSense — AI-Powered Inventory Management System", FONT_FOOTER), 36, 26, 0);
+                            new Phrase(footer, FONT_FOOTER), 36, 26, 0);
                     ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT,
                             new Phrase("Page " + writer.getPageNumber(), FONT_FOOTER), page.getWidth() - 36, 26, 0);
                 } catch (Exception ignored) { }

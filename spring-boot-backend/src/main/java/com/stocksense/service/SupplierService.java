@@ -64,6 +64,8 @@ public class SupplierService {
         supplier.setCountry(request.getCountry() != null ? request.getCountry() : "Sri Lanka");
         supplier.setTaxNumber(request.getTaxNumber());
         supplier.setPaymentTerms(request.getPaymentTerms());
+        supplier.setLeadTimeDays(request.getLeadTimeDays() != null && request.getLeadTimeDays() > 0
+                ? request.getLeadTimeDays() : 7);
         supplier.setNotes(request.getNotes());
         return supplier;
     }

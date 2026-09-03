@@ -154,7 +154,7 @@
       </div>
 
       <!-- Login Form - NO CSRF (disabled in SecurityConfig) -->
-      <form action="/login" method="post">
+      <form th:action="@{/login}" method="post">
         <div class="login-field">
           <label for="username">Username</label>
           <div class="login-input-wrap">

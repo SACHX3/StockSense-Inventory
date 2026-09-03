@@ -13,6 +13,43 @@
 (function () {
   'use strict';
 
+  // ── CSRF for fetch() ──────────────────────────────────────────────────
+  // Spring Security rejects any POST/PUT/PATCH/DELETE without a CSRF token.
+  // Forms get theirs from Thymeleaf; fetch() calls get it here, once, by
+  // wrapping window.fetch - so the ten call sites scattered across the POS,
+  // OCR and forecasting pages did not have to be touched individually.
+  //
+  // Same-origin only: the token must never be attached to a cross-origin
+  // request, which would leak it to whatever host was called.
+  (function () {
+    function meta(name) {
+      var el = document.querySelector('meta[name="' + name + '"]');
+      return el ? el.getAttribute('content') : '';
+    }
+    var token = meta('_csrf');
+    var header = meta('_csrf_header') || 'X-CSRF-TOKEN';
+    if (!token || !window.fetch) return;
+
+    var nativeFetch = window.fetch.bind(window);
+    var SAFE = /^(GET|HEAD|OPTIONS|TRACE)$/i;
+
+    window.fetch = function (input, init) {
+      init = init || {};
+      var method = init.method || (typeof input === 'object' && input.method) || 'GET';
+      if (SAFE.test(method)) return nativeFetch(input, init);
+
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var sameOrigin = !/^https?:\/\//i.test(url) || url.indexOf(window.location.origin) === 0;
+      if (!sameOrigin) return nativeFetch(input, init);
+
+      var headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined));
+      if (!headers.has(header)) headers.set(header, token);
+      init.headers = headers;
+      if (!init.credentials) init.credentials = 'same-origin';
+      return nativeFetch(input, init);
+    };
+  })();
+
   // ── Theme ────────────────────────────────────────────────────────────
   var THEME_KEY = 'stocksense-theme';
 
@@ -178,6 +215,7 @@
       .then(function (res) {
         var data = (res && res.data) || {};
         var online = !!data.healthy;
+        setSystemBadge(online ? 'online' : 'offline');
         renderAiResult(
           online,
           online ? 'FastAPI AI/OCR service is responding normally.' : 'Using fallback forecasting. Core inventory features remain available.',
@@ -186,9 +224,62 @@
         return online;
       })
       .catch(function () {
+        setSystemBadge('offline');
         renderAiResult(false, 'Couldn\'t reach the AI/OCR service. Core inventory features remain available.', {});
         return false;
       });
+  }
+
+  // ── Topbar Online/Offline badge ─────────────────────────────────────
+  // Reflects the real AI/OCR service health from /forecasting/api/service/status,
+  // the same endpoint the AI status panel uses. It starts in a neutral "Checking"
+  // state rather than claiming "Online" before anything has been verified.
+  var SYS_BADGE_POLL_MS = 30000;
+  var sysBadgeTimer = null;
+
+  function setSystemBadge(state) {
+    var badge = document.getElementById('systemLiveBadge');
+    var text = document.getElementById('systemLiveText');
+    if (!badge || !text) return;
+    badge.classList.remove('is-online', 'is-offline', 'is-checking');
+    if (state === 'online') {
+      badge.classList.add('is-online');
+      text.textContent = 'Online';
+      badge.title = 'AI/OCR service is responding normally';
+    } else if (state === 'offline') {
+      badge.classList.add('is-offline');
+      text.textContent = 'Offline';
+      badge.title = 'AI/OCR service is not responding - fallback forecasting in use';
+    } else {
+      badge.classList.add('is-checking');
+      text.textContent = 'Checking';
+      badge.title = 'Checking AI service\u2026';
+    }
+  }
+  window.setSystemBadge = setSystemBadge;
+
+  function pollSystemBadge() {
+    return fetch('/forecasting/api/service/status', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        setSystemBadge(((res && res.data) || {}).healthy ? 'online' : 'offline');
+      })
+      .catch(function () { setSystemBadge('offline'); });
+  }
+
+  if (document.getElementById('systemLiveBadge')) {
+    pollSystemBadge();
+    sysBadgeTimer = setInterval(pollSystemBadge, SYS_BADGE_POLL_MS);
+    // Don't keep polling a tab nobody is looking at; re-check on return so the
+    // badge is never showing a stale status the moment the user comes back.
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        clearInterval(sysBadgeTimer); sysBadgeTimer = null;
+      } else if (!sysBadgeTimer) {
+        pollSystemBadge();
+        sysBadgeTimer = setInterval(pollSystemBadge, SYS_BADGE_POLL_MS);
+      }
+    });
   }
 
   window.checkAIServiceGlobal = function (e) {

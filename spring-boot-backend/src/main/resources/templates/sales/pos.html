@@ -136,6 +136,7 @@
        th:data-id="${p.id}"
        th:data-name="${p.name}"
        th:data-sku="${p.sku}"
+       th:data-barcode="${p.barcode ?: ''}"
        th:data-price="${p.sellingPrice}"
        th:data-stock="${p.quantity}"
        th:data-unit="${p.unit}"
@@ -155,20 +156,22 @@
 #posQsDropdown .qs-item{cursor:pointer}
 
 /* Selected-product preview (center panel, replaces the old always-on grid) */
-.preview-wrap{min-height:420px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border:1.5px dashed var(--border);border-radius:var(--radius);padding:20px}
+.preview-wrap{min-height:420px;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1.5px dashed var(--border);border-radius:var(--radius);padding:20px}
 .preview-empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:20px}
-.preview-empty-icon{width:64px;height:64px;border-radius:18px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin-bottom:10px;box-shadow:var(--shadow);animation:posFloatY 4s ease-in-out infinite}
+.preview-empty-icon{width:64px;height:64px;border-radius:18px;background:var(--primary-soft);border:1px solid color-mix(in srgb, var(--primary) 22%, var(--border));display:flex;align-items:center;justify-content:center;margin-bottom:10px;box-shadow:var(--shadow);animation:posFloatY 4s ease-in-out infinite}
 @keyframes posFloatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.preview-empty-icon i{font-size:26px;color:var(--text-3)}
+.preview-empty-icon i{font-size:26px;color:var(--primary)}
+.preview-empty-icon svg{font-size:26px;color:var(--primary)}
 .preview-empty b{font-size:14.5px;font-weight:700;color:var(--text);letter-spacing:-.01em}
 .preview-empty span{font-size:12.5px;color:var(--text-3);max-width:280px;line-height:1.6;margin-top:2px}
 
 .product-preview{
   position:relative;
   width:100%;max-width:380px;margin:0 auto;
-  background:var(--surface);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--primary) 5%, var(--surface)), var(--surface) 60%);
   border:1.5px solid color-mix(in srgb, var(--primary) 22%, var(--border));
   border-radius:22px;
+  box-shadow:var(--shadow);
   padding:28px 26px 26px;
   text-align:center;
   overflow:hidden;
@@ -179,16 +182,17 @@
 .preview-badge-row{position:relative;display:flex;justify-content:center;margin-bottom:16px}
 .preview-brand-badge{
   display:inline-flex;align-items:center;gap:7px;
-  background:linear-gradient(135deg,#2f4fd6 0%,#5b3fc9 50%,#8b4ce0 100%);color:#fff;
+  background:linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);color:#fff;
   font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
   padding:6px 14px;border-radius:20px
 }
 .preview-brand-badge i{font-size:13px}
+.preview-brand-badge svg{font-size:13px}
 
 .preview-thumb-ring{
   position:relative;width:168px;height:168px;margin:0 auto 18px;
   border-radius:26px;
-  background:linear-gradient(135deg,#2f4fd6 0%,#5b3fc9 50%,#8b4ce0 100%);
+  background:linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
   padding:5px
 }
 .preview-thumb{
@@ -197,6 +201,7 @@
   display:flex;align-items:center;justify-content:center;color:var(--text-3);overflow:hidden
 }
 .preview-thumb i{font-size:56px;color:var(--primary)}
+.preview-thumb svg{font-size:56px;color:var(--primary)}
 .preview-thumb img{width:100%;height:100%;object-fit:contain;padding:14px}
 
 .preview-name{position:relative;font-weight:800;font-size:18px;letter-spacing:-.015em;margin-bottom:3px}
@@ -210,9 +215,15 @@
 .qty-stepper button{width:38px;height:38px;border:0;background:var(--surface-2);color:var(--text-2);display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
 .qty-stepper button:hover{background:var(--primary-soft);color:var(--primary)}
 .qty-stepper button i{font-size:15px}
-.qty-stepper input{width:52px;height:38px;border:0;border-left:1.5px solid var(--border);border-right:1.5px solid var(--border);text-align:center;font-size:15px;font-weight:800;color:var(--text);background:var(--surface)}
+.qty-stepper button svg{font-size:15px}
+/* Wide enough for 4 digits at 15px/800. Number spinners are hidden because
+   they steal ~14px of the field and clip the value the moment it reaches 3-4
+   digits - the +/- buttons already do that job. */
+.qty-stepper input{width:74px;height:38px;border:0;border-left:1.5px solid var(--border);border-right:1.5px solid var(--border);text-align:center;font-size:15px;font-weight:800;color:var(--text);background:var(--surface);font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+.qty-stepper input::-webkit-outer-spin-button,.qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .preview-add-btn{position:relative;width:100%;justify-content:center;font-size:14px;padding:13px}
 .preview-add-btn i{font-size:16px}
+.preview-add-btn svg{font-size:16px}
 
 .product-name{font-weight:700;font-size:12.5px;letter-spacing:-.005em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .product-sku{font-size:10.5px;color:var(--text-3);margin-bottom:8px}
@@ -225,16 +236,24 @@
 .cart-items{max-height:280px;overflow-y:auto}
 .cart-empty{padding:40px 20px;text-align:center;color:var(--text-3);font-size:12.5px}
 .cart-empty i{font-size:36px;display:block;margin:0 auto 10px;opacity:.5}
+/* The shim swaps the <i> for an <svg>, so this rule must name both - otherwise the
+   icon loses display:block and its margin and sits jammed against the text.
+   Size is set with font-size, NOT width/height: icons.js gives every icon an
+   inline width:1em;height:1em, and an inline style beats a stylesheet rule.
+   display needs !important for the same reason - inline display:inline-block. */
+.cart-empty svg{font-size:36px;display:block!important;margin:0 auto 12px;opacity:.5}
 .cart-row{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--border)}
 .cart-row:last-child{border-bottom:0}
 .cart-row .ci-name{flex:1;min-width:0}
 .cart-row .ci-name b{display:block;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cart-row .ci-name span{font-size:10.5px;color:var(--text-3)}
-input.qty-input{width:52px !important;flex:none;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:5px 6px;font-size:11.5px;text-align:center;color:var(--text)}
+input.qty-input{width:62px !important;flex:none;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:5px 4px;font-size:11.5px;text-align:center;color:var(--text);font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+input.qty-input::-webkit-outer-spin-button,input.qty-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .ci-total{width:72px;flex:none;text-align:right;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
 .ci-remove{width:22px;height:22px;border:0;background:transparent;color:var(--text-3);display:flex;align-items:center;justify-content:center;border-radius:6px;flex:none}
 .ci-remove:hover{background:var(--bad-soft);color:var(--bad)}
 .ci-remove i{font-size:13px}
+.ci-remove svg{font-size:13px}
 
 .totals-block{padding:14px 18px;border-top:1px solid var(--border);background:var(--surface)}
 .totals-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;padding:4px 0;color:var(--text-2)}
@@ -249,18 +268,21 @@ input.disc-input{width:90px !important;flex:none;background:var(--surface-2) !im
 .pay-methods{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 18px 14px}
 .pay-chip{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface-2);border:1.5px solid var(--border);border-radius:10px;padding:10px;font-size:12px;font-weight:700;color:var(--text-2);transition:background .15s,border-color .15s,color .15s}
 .pay-chip i{font-size:14px}
+.pay-chip svg{font-size:14px;flex:none}
 .pay-chip.active{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
 
 .complete-btn{width:calc(100% - 36px);margin:6px 18px 10px;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#17b26a 0%,#0f9d5c 100%);color:#fff;border:0;border-radius:12px;padding:15px;font-size:14px;font-weight:800;letter-spacing:-.01em;box-shadow:0 10px 24px -8px rgba(23,177,106,.5);transition:filter .18s,transform .12s}
 .complete-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .complete-btn:disabled{opacity:.5;cursor:not-allowed;filter:none;transform:none}
 .complete-btn i{font-size:17px}
+.complete-btn svg{font-size:17px}
 
 .status-strip{display:flex;align-items:center;gap:9px;border-radius:10px;padding:11px 15px;font-size:12.5px;font-weight:600;margin-bottom:16px;background:var(--surface-2);color:var(--text-2)}
 .status-strip.ok{background:var(--good-soft);color:var(--good)}
 .status-strip.warn{background:var(--warn-soft);color:var(--warn)}
 .status-strip.bad{background:var(--bad-soft);color:var(--bad)}
 .status-strip i{font-size:15px;flex:none}
+.status-strip svg{font-size:15px;flex:none}
 @media (max-width:1000px){.pos-grid{grid-template-columns:1fr!important}}
 @media (max-width:560px){.cust-fields{grid-template-columns:1fr!important}.pay-methods{grid-template-columns:1fr!important}}
 </style>
@@ -275,6 +297,7 @@ document.querySelectorAll('#productDataContainer .pd').forEach(function(el) {
       id:    parseInt(el.getAttribute('data-id')),
       name:  el.getAttribute('data-name') || '',
       sku:   el.getAttribute('data-sku')  || '',
+      barcode: el.getAttribute('data-barcode') || '',
       price: price,
       stock: stock,
       unit:  el.getAttribute('data-unit') || 'pcs',
@@ -587,6 +610,81 @@ function resetPreview() {
 
 document.getElementById('discountAmount').addEventListener('input', updateTotals);
 
+// ── Barcode scanner support ───────────────────────────────────────────────
+// A USB/Bluetooth barcode scanner is a keyboard: it "types" the code and presses
+// Enter. We listen at the document level so the cashier never has to click into a
+// field first - scan anywhere on the page and the product loads.
+//
+// Telling a scanner apart from a human typist is done on SPEED. A scanner emits
+// characters in a few milliseconds each; nobody types 12 digits in under 300ms.
+// That is why a plain "Enter in the search box" handler is not enough: it would
+// also fire when someone types a product name and hits Enter.
+(function () {
+  var BARCODE_MAX_GAP_MS = 60;   // max gap between two scanned characters
+  var BARCODE_MIN_LENGTH = 4;    // ignore short bursts - those are human
+
+  var buffer = '';
+  var lastKeyTime = 0;
+
+  function findByBarcode(code) {
+    code = String(code).trim().toLowerCase();
+    if (!code) return null;
+    for (var i = 0; i < PRODUCTS.length; i++) {
+      var b = (PRODUCTS[i].barcode || '').trim().toLowerCase();
+      if (b && b === code) return PRODUCTS[i];
+    }
+    // Fall back to SKU: plenty of shops print the SKU as the barcode.
+    for (var j = 0; j < PRODUCTS.length; j++) {
+      if ((PRODUCTS[j].sku || '').trim().toLowerCase() === code) return PRODUCTS[j];
+    }
+    return null;
+  }
+
+  function handleScan(code) {
+    var product = findByBarcode(code);
+    if (!product) {
+      if (window.stocksenseToast) window.stocksenseToast('No product with barcode "' + code + '"', 'warning');
+      return;
+    }
+    if (product.stock <= 0) {
+      if (window.stocksenseToast) window.stocksenseToast(product.name + ' is out of stock', 'warning');
+      return;
+    }
+    // Same path a click on a search result takes, so scanning and clicking
+    // can never diverge in behaviour.
+    showPreview(product);
+    if (window.stocksenseToast) window.stocksenseToast('Scanned: ' + product.name, 'success', 1800);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    // Never swallow keys while the user is editing a real field, unless it is
+    // the product search box - scanning into that is expected.
+    var el = document.activeElement;
+    var tag = el ? el.tagName : '';
+    var typingElsewhere = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')
+                          && el.id !== 'productSearch';
+    if (typingElsewhere) return;
+
+    var now = Date.now();
+    if (now - lastKeyTime > BARCODE_MAX_GAP_MS) buffer = '';
+    lastKeyTime = now;
+
+    if (e.key === 'Enter') {
+      if (buffer.length >= BARCODE_MIN_LENGTH) {
+        e.preventDefault();
+        var code = buffer;
+        buffer = '';
+        var box = document.getElementById('productSearch');
+        if (box && document.activeElement === box) box.value = '';
+        handleScan(code);
+      }
+      buffer = '';
+      return;
+    }
+    if (e.key.length === 1) buffer += e.key;
+  });
+})();
+
 // ── Fast instant search dropdown (same style/behavior as the top bar quick
 // search) - clicking a result loads it into the centered preview card
 // above, where quantity can be set before adding to the cart. ─────────────
@@ -610,7 +708,9 @@ document.getElementById('discountAmount').addEventListener('input', updateTotals
 
   function renderDropdown(term) {
     var matches = PRODUCTS.filter(function(p) {
-      return p.name.toLowerCase().indexOf(term) >= 0 || p.sku.toLowerCase().indexOf(term) >= 0;
+      return p.name.toLowerCase().indexOf(term) >= 0
+          || p.sku.toLowerCase().indexOf(term) >= 0
+          || (p.barcode && p.barcode.toLowerCase().indexOf(term) >= 0);
     }).slice(0, 8);
 
     if (!matches.length) {

@@ -49,7 +49,7 @@
 
 .fc-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px;transition:box-shadow .25s ease,border-color .25s ease}
 .fc-panel:hover{box-shadow:0 4px 8px rgba(23,21,34,.04), 0 18px 40px -18px color-mix(in srgb, var(--primary) 30%, transparent);border-color:color-mix(in srgb, var(--primary) 22%, var(--border))}
-.fc-panel-head{display:flex;align-items:center;gap:9px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.fc-panel-head{display:flex;align-items:center;gap:9px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--surface)}
 .fc-panel-head svg{width:16px;height:16px;color:var(--primary);flex:none}
 .fc-panel-head span{font-weight:700;font-size:13.5px;letter-spacing:-.01em}
 .fc-panel-body{padding:18px}
@@ -142,7 +142,7 @@
       </div>
     </div>
     <div class="fc-head-actions">
-      <button class="fc-btn-ghost warn" type="button" onclick="retrainModel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>Retrain Model</button>
+      <button id="retrainBtn" class="fc-btn-ghost warn" type="button" onclick="retrainModel()"><svg id="retrainIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg><span id="retrainLabel">Retrain Model</span></button>
     </div>
   </div>
 
@@ -169,7 +169,8 @@
                         th:value="${p.id}"
                         th:text="${p.name + ' (' + p.quantity + ' ' + p.unit + ')'}"
                         th:data-stock="${p.quantity}"
-                        th:data-unit="${p.unit}">Product</option>
+                        th:data-unit="${p.unit}"
+                        th:selected="${defaultProductId != null and p.id == defaultProductId}">Product</option>
               </select>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
             </div>
@@ -269,6 +270,51 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Retraining results (populated after the Retrain Model button) ───── -->
+  <div class="fc-panel rt-panel" id="retrainPanel" hidden>
+    <div class="fc-panel-head" style="justify-content:space-between">
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+        <span>Last Training Run</span>
+      </span>
+      <span class="rt-stamp" id="rtStamp"></span>
+    </div>
+    <div class="fc-panel-body">
+
+      <div class="rt-stats" id="rtStats"></div>
+
+      <div class="rt-chart-head">
+        <div>
+          <div class="rt-chart-title">Hold-out accuracy</div>
+          <div class="rt-chart-sub" id="rtChartSub">Model vs. baseline on days it never saw during training</div>
+        </div>
+        <div class="fc-select-wrap rt-select">
+          <select id="rtProductSelect"></select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div class="rt-chart-wrap"><canvas id="retrainChart"></canvas></div>
+      <div class="rt-verdict" id="rtVerdict"></div>
+
+      <details class="rt-details">
+        <summary>Per-product results</summary>
+        <div class="rt-table-wrap">
+          <table class="rt-table">
+            <thead>
+              <tr>
+                <th>Product</th><th>History</th><th>Train rows</th>
+                <th>Model MAE</th><th>Baseline MAE</th><th>Verdict</th><th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="rtTableBody"></tbody>
+          </table>
+        </div>
+      </details>
+
+    </div>
+  </div>
 </div>
 
 </th:block>
@@ -294,6 +340,26 @@ function countUp(el, target, decimals){
   }
   requestAnimationFrame(tick);
 }
+
+// ── Open on the dashboard's product, already forecast ─────────────────────
+// The dashboard's AI Forecast widget shows the most urgent low-stock product over
+// the next 30 days. This page now opens on the same product and runs the same
+// 30-day forecast, so the two "demand trend" lines are the same product, the same
+// window and the same values - they trace an identical shape.
+(function () {
+  var sel = document.getElementById('productSelect');
+  if (!sel || !sel.value) return;          // nothing pre-selected - leave the empty state
+  document.addEventListener('DOMContentLoaded', function () {
+    // 30 days: the dashboard sparkline's fixed window (SPARKLINE_DAYS).
+    var days = document.getElementById('forecastDays');
+    if (days) days.value = 30;
+    document.querySelectorAll('.fc-period-btn').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-days') === '30');
+    });
+    selectedDays = 30;
+    generateForecast();
+  });
+})();
 
 // ── Period toggle buttons ────────────────────────────────────────
 document.querySelectorAll('.fc-period-btn').forEach(function(btn) {
@@ -347,18 +413,26 @@ function generateForecast() {
 function showResults(data, days) {
   var preds  = data.predictions || [];
   var labels = preds.map(function(p) { return p.date; });
-  var values = preds.map(function(p) { return p.predicted_demand || 0; });
+  // Both this chart and the dashboard sparkline plot the UN-ROUNDED prediction, so
+  // the two demand-trend lines are the same numbers and trace the same shape. Whole
+  // units would flatten a slow mover (0.4/day) into thirty zeros on both pages.
+  var exact = preds.map(function(p) {
+    return p.predicted_demand_exact != null ? p.predicted_demand_exact : (p.predicted_demand || 0);
+  });
+  var values = exact;
   var upper  = preds.map(function(p) { return p.confidence_upper  || (p.predicted_demand + 2); });
   var lower  = preds.map(function(p) { return p.confidence_lower  || Math.max(0, p.predicted_demand - 1); });
 
-  var total  = values.reduce(function(a,b){return a+b;},0);
-  var avg    = values.length > 0 ? (total / values.length) : 0;
+  var total  = exact.reduce(function(a,b){return a+b;},0);
+  var avg    = exact.length > 0 ? (total / exact.length) : 0;
 
   // Summary bar
   var sel = document.getElementById('productSelect');
   var pname = sel.options[sel.selectedIndex].text.replace(/\s*\(.*\)/, '');
   document.getElementById('forecastProductName').textContent = pname;
   countUp(document.getElementById('sumAvg'), avg, 1);
+  // Round the SUM, never the daily values before summing: for a slow mover each
+  // day rounds to 0 and a 30-day total of 12 units would come out as zero.
   countUp(document.getElementById('sumTotal'), Math.round(total));
   countUp(document.getElementById('sumPeriod'), parseInt(days));
 
@@ -472,25 +546,298 @@ function showResults(data, days) {
   }
 }
 
+var retrainInFlight = false;
+
+function setRetrainBusy(busy) {
+  var btn = document.getElementById('retrainBtn');
+  var icon = document.getElementById('retrainIcon');
+  var label = document.getElementById('retrainLabel');
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.classList.toggle('is-busy', busy);
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+  if (icon) icon.classList.toggle('spinning', busy);
+  if (label) label.textContent = busy ? 'Retraining\u2026' : 'Retrain Model';
+}
+
+function notify(message, type) {
+  if (window.stocksenseToast) window.stocksenseToast(message, type);
+  else alert(message);
+}
+
 function retrainModel() {
-  if (!confirm('Retrain the AI model? This may take a moment.')) return;
+  // Training fits one model per product and can take a while, so guard against a
+  // second click piling another full training run onto the AI service.
+  if (retrainInFlight) return;
+  if (!confirm('Retrain the AI model?\n\nThis trains one model per product from your sales history and can take a minute or two.')) return;
+
+  retrainInFlight = true;
+  setRetrainBusy(true);
+
   fetch('/forecasting/api/retrain', { method: 'POST' })
   .then(function(r) { return r.json(); })
   .then(function(res) {
-    if (window.stocksenseToast) {
-      window.stocksenseToast(
-        res.success ? 'Model retrained successfully!' : ('Retrain failed: ' + (res.message || 'Unknown error')),
-        res.success ? 'success' : 'error'
-      );
-    } else {
-      alert(res.success ? 'Model retrained successfully!' : 'Retrain failed: ' + res.message);
+    if (!res.success) {
+      notify('Retrain failed: ' + (res.message || 'Unknown error'), 'error');
+      return;
     }
+    // Report what actually happened rather than a blanket "success": products with
+    // too little sales history are skipped, and the user should know that.
+    var d = res.data || {};
+    var msg = 'Model retrained successfully!';
+    if (typeof d.trained === 'number') {
+      msg = 'Trained ' + d.trained + ' model' + (d.trained === 1 ? '' : 's');
+      if (d.skipped) msg += ', skipped ' + d.skipped + ' (not enough sales history)';
+      if (d.mean_holdout_mae != null) msg += ' \u00b7 avg MAE ' + d.mean_holdout_mae;
+    }
+    notify(msg, d.trained === 0 ? 'warning' : 'success');
+    renderRetrainResults(d);
   })
   .catch(function(e) {
-    if (window.stocksenseToast) window.stocksenseToast('Error: ' + e.message, 'error');
-    else alert('Error: ' + e.message);
+    notify('Error: ' + e.message, 'error');
+  })
+  .finally(function() {
+    retrainInFlight = false;
+    setRetrainBusy(false);
   });
 }
+
+
+// ── Training-run results panel ──────────────────────────────────────────────
+// Populated from the /forecasting/api/retrain response. Everything shown here -
+// including the chart - comes from the exact hold-out rows the metrics were
+// computed on, so the picture and the numbers can never disagree.
+var retrainChart = null;
+var retrainData = null;
+
+function rtProductName(id) {
+  var sel = document.getElementById('productSelect');
+  if (sel) {
+    for (var i = 0; i < sel.options.length; i++) {
+      if (String(sel.options[i].value) === String(id)) {
+        return sel.options[i].textContent.replace(/\s*\(.*\)\s*$/, '');
+      }
+    }
+  }
+  return 'Product #' + id;
+}
+
+function rtNum(v, dp) {
+  if (v == null || v === '') return '\u2014';
+  var n = Number(v);
+  return isNaN(n) ? String(v) : n.toFixed(dp == null ? 2 : dp);
+}
+
+// A model that lands within a whisker of the baseline has not actually beaten it.
+// Reporting a 0.2% edge as a win would overstate what the training achieved.
+var RT_MARGIN = 0.03;
+function rtVerdictOf(row) {
+  if (row.mae == null || row.baseline_mae == null) return 'unknown';
+  if (row.mae < row.baseline_mae * (1 - RT_MARGIN)) return 'better';
+  if (row.mae > row.baseline_mae * (1 + RT_MARGIN)) return 'worse';
+  return 'same';
+}
+
+function rtEscape(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function rtFormatDate(iso) {
+  var parts = String(iso).split('-');
+  if (parts.length !== 3) return iso;
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(parts[2], 10) + ' ' + MONTHS[parseInt(parts[1], 10) - 1];
+}
+
+function renderRetrainResults(d) {
+  if (!d || !Array.isArray(d.results)) return;
+  retrainData = d;
+
+  var panel = document.getElementById('retrainPanel');
+  panel.hidden = false;
+
+  var stamp = document.getElementById('rtStamp');
+  var when = d.timestamp ? new Date(d.timestamp) : new Date();
+  stamp.textContent = 'Finished ' + when.toLocaleString();
+
+  var trainedRows = d.results.filter(function (r) { return r.trained; });
+  var beat = trainedRows.filter(function (r) { return rtVerdictOf(r) === 'better'; }).length;
+
+  document.getElementById('rtStats').innerHTML = [
+    rtStat(d.trained, 'Models trained', ''),
+    rtStat(d.skipped, 'Skipped', d.skipped ? 'warn' : ''),
+    rtStat(beat + ' / ' + trainedRows.length, 'Beat the baseline', beat === trainedRows.length && beat > 0 ? 'good' : 'warn'),
+    rtStat(d.elapsed_seconds != null ? d.elapsed_seconds + 's' : '—', 'Training time', ''),
+    rtStat(rtNum(d.mean_holdout_mae), 'Avg hold-out MAE', '')
+  ].join('');
+
+  // Product picker: only products that actually produced a hold-out series.
+  var plottable = trainedRows.filter(function (r) { return r.holdout && r.holdout.dates.length; });
+  var sel = document.getElementById('rtProductSelect');
+  sel.innerHTML = plottable.map(function (r) {
+    return '<option value="' + rtEscape(r.product_id) + '">' + rtEscape(rtProductName(r.product_id)) + '</option>';
+  }).join('');
+  sel.disabled = plottable.length === 0;
+
+  // Per-product table
+  document.getElementById('rtTableBody').innerHTML = d.results.map(function (r) {
+    if (!r.trained) {
+      return '<tr class="rt-skipped"><td>' + rtEscape(rtProductName(r.product_id)) + '</td>' +
+             '<td colspan="6">Skipped — ' + rtEscape(r.reason || 'not enough sales history') + '</td></tr>';
+    }
+    var v = rtVerdictOf(r);
+    var verdict = v === 'better' ? '<span class="rt-tag good">Beats baseline</span>'
+                : v === 'same'   ? '<span class="rt-tag">Matches baseline</span>'
+                :                  '<span class="rt-tag warn">Worse than baseline</span>';
+    return '<tr>' +
+      '<td>' + rtEscape(rtProductName(r.product_id)) + '</td>' +
+      '<td>' + rtEscape(r.history_days) + ' days</td>' +
+      '<td>' + rtEscape(r.training_rows) + '</td>' +
+      '<td><b>' + rtEscape(rtNum(r.mae)) + '</b></td>' +
+      '<td>' + rtEscape(rtNum(r.baseline_mae)) + '</td>' +
+      '<td>' + verdict + '</td>' +
+      '<td>' + rtEscape(r.train_seconds) + 's</td>' +
+      '</tr>';
+  }).join('');
+
+  if (plottable.length) {
+    drawRetrainChart(plottable[0].product_id);
+  } else if (retrainChart) {
+    retrainChart.destroy();
+    retrainChart = null;
+  }
+}
+
+function rtStat(value, label, tone) {
+  return '<div class="rt-stat' + (tone ? ' ' + tone : '') + '">' +
+         '<b>' + rtEscape(value) + '</b><span>' + rtEscape(label) + '</span></div>';
+}
+
+function rtSeriesColors() {
+  var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  // Both triples validated for colour-vision deficiency separation and for
+  // contrast against their own surface. Do not swap one without re-checking.
+  return dark
+    ? { actual: '#8b5cf6', baseline: '#ea580c', model: '#0f9e8e' }
+    : { actual: '#5b2ecc', baseline: '#c2410c', model: '#0d9488' };
+}
+
+function drawRetrainChart(productId) {
+  if (typeof Chart === 'undefined' || !retrainData) return;
+  var row = retrainData.results.filter(function (r) {
+    return String(r.product_id) === String(productId) && r.holdout;
+  })[0];
+  if (!row) return;
+
+  var h = row.holdout;
+  var c = rtSeriesColors();
+  var ctx = document.getElementById('retrainChart');
+  if (retrainChart) retrainChart.destroy();
+
+  function series(label, data, color, dashed) {
+    return {
+      label: label, data: data,
+      borderColor: color, backgroundColor: color,
+      borderWidth: 2,
+      borderDash: dashed ? [5, 4] : undefined,
+      pointRadius: h.dates.length > 45 ? 0 : 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: color,
+      pointBorderColor: window.cssVar ? window.cssVar('--surface') : '#fff',
+      pointBorderWidth: 2,
+      tension: 0.25,
+      fill: false
+    };
+  }
+
+  var textColor = window.cssVar ? window.cssVar('--text-2') : '#65637a';
+  var gridColor = window.withAlpha && window.cssVar
+    ? window.withAlpha(window.cssVar('--text-3'), 0.15) : 'rgba(0,0,0,.08)';
+
+  retrainChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: h.dates.map(rtFormatDate),
+      datasets: [
+        series('Actual units sold', h.actual, c.actual, false),
+        series('Baseline: last 7-day average, held flat', h.baseline, c.baseline, true),
+        series('Random Forest (model)', h.predicted, c.model, false)
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: textColor, boxWidth: 10, usePointStyle: true,
+                    pointStyle: 'circle', font: { size: 11 } }
+        },
+        tooltip: {
+          backgroundColor: window.cssVar ? window.cssVar('--surface') : '#fff',
+          titleColor: window.cssVar ? window.cssVar('--text') : '#171522',
+          bodyColor: textColor,
+          borderColor: window.cssVar ? window.cssVar('--border') : '#e9e8f5',
+          borderWidth: 1
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Units sold per day', color: textColor, font: { size: 11 } },
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 10 } }
+        },
+        x: {
+          title: { display: true, text: 'Hold-out date', color: textColor, font: { size: 11 } },
+          grid: { display: false },
+          ticks: { color: textColor, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }
+        }
+      }
+    }
+  });
+
+  document.getElementById('rtChartSub').textContent =
+    h.dates.length + ' days the model never saw during training · '
+    + rtFormatDate(h.dates[0]) + ' – ' + rtFormatDate(h.dates[h.dates.length - 1]);
+
+  // State the conclusion in words. A chart of three wiggly lines does not by
+  // itself tell the reader whether the model is worth using.
+  var v = document.getElementById('rtVerdict');
+  var verdict = rtVerdictOf(row);
+  var head = 'Over these ' + h.dates.length + ' days the model was off by '
+           + rtNum(row.mae) + ' units per day on average, against '
+           + rtNum(row.baseline_mae) + ' for a naive forecast that just carries the '
+           + 'last 7-day average forward. ';
+  if (verdict === 'better') {
+    v.className = 'rt-verdict good';
+    v.textContent = head + 'The model is adding real value over the simple baseline.';
+  } else if (verdict === 'same') {
+    v.className = 'rt-verdict';
+    v.textContent = head + 'That is effectively a tie — the model is not yet earning its keep '
+      + 'over the naive forecast. More sales history is usually what changes this.';
+  } else {
+    v.className = 'rt-verdict warn';
+    v.textContent = head + 'The naive forecast is doing better here, so treat this '
+      + "product's forecast with caution until there is more sales history.";
+  }
+}
+
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'rtProductSelect') drawRetrainChart(e.target.value);
+});
+
+// The light/dark series palettes are different colours, not a filter over the same
+// ones, so the chart has to be rebuilt when the theme flips. Registering with the
+// app's chart registry is what makes the theme toggle reach this chart at all.
+if (window.registerChartBuilder) {
+  window.registerChartBuilder(function () {
+    var sel = document.getElementById('rtProductSelect');
+    if (retrainData && sel && sel.value) drawRetrainChart(sel.value);
+  });
+}
+
 </script>
 </th:block>
 </html>

@@ -3,8 +3,16 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title th:text="${'Receipt - ' + sale.invoiceNumber}">Receipt</title>
+  <title th:text="${(store != null ? store.storeName : 'StockSense') + ' - Receipt ' + sale.invoiceNumber}">Receipt</title>
   <style>
+    /* Palette kept in step with static/css/stocksense.css. This page is standalone
+       (it does not use the app layout fragment), so the tokens are duplicated here
+       - if you change them there, change them here too.
+
+       Theme resolution matches the rest of the app: an explicit choice on
+       <html data-theme> wins, and the OS preference is only the fallback. Without
+       the data-theme rules the receipt ignored the in-app light/dark toggle and
+       followed the OS instead, so a user in dark mode got a white receipt. */
     :root{
       --bg:#f5f5fc; --surface:#ffffff; --surface-2:#f2f1fb; --border:#e9e8f5;
       --text:#171522; --text-2:#65637a; --text-3:#9896ab;
@@ -12,14 +20,30 @@
       --good:#17b26a; --warn:#f0a71b;
       --radius-sm:12px;
       --shadow:0 1px 2px rgba(23,21,34,.03), 0 10px 28px -14px rgba(109,63,216,.14);
+      --brand-grad: linear-gradient(135deg,#2f4fd6 0%,#5b3fc9 50%,#8b4ce0 100%);
+      --brand-shadow: 0 8px 20px -6px rgba(91,63,201,.5);
+    }
+    /* FlowMind dark palette - same values as stocksense.css */
+    :root[data-theme="dark"]{
+      --bg:#070912; --surface:#0f1219; --surface-2:#161a23;
+      --border:rgba(255,255,255,.07);
+      --text:#f7f9fc; --text-2:#97a1b6; --text-3:#68718a;
+      --primary:#8b5cf6; --primary-2:#a78bfa; --primary-soft:rgba(139,92,246,.16);
+      --good:#22c55e; --warn:#f5a524;
+      --shadow:0 1px 2px rgba(0,0,0,.45), 0 18px 40px -20px rgba(0,0,0,.85);
+      --brand-grad: linear-gradient(135deg,#6d4bd8 0%,#8b5cf6 50%,#a78bfa 100%);
+      --brand-shadow: 0 8px 20px -8px rgba(139,92,246,.55);
     }
     @media (prefers-color-scheme: dark){
-      :root{
-        --bg:#0a0a12; --surface:#15151f; --surface-2:#1c1c29; --border:rgba(255,255,255,.08);
-        --text:#f4f2ff; --text-2:#b3aed9; --text-3:#7c76a8;
-        --primary:#9d6bff; --primary-2:#b98cff; --primary-soft:rgba(157,107,255,.16);
-        --good:#3ddc91; --warn:#ffc453;
-        --shadow:0 1px 2px rgba(0,0,0,.2), 0 12px 32px -16px rgba(0,0,0,.6);
+      :root:not([data-theme="light"]){
+        --bg:#070912; --surface:#0f1219; --surface-2:#161a23;
+        --border:rgba(255,255,255,.07);
+        --text:#f7f9fc; --text-2:#97a1b6; --text-3:#68718a;
+        --primary:#8b5cf6; --primary-2:#a78bfa; --primary-soft:rgba(139,92,246,.16);
+        --good:#22c55e; --warn:#f5a524;
+        --shadow:0 1px 2px rgba(0,0,0,.45), 0 18px 40px -20px rgba(0,0,0,.85);
+        --brand-grad: linear-gradient(135deg,#6d4bd8 0%,#8b5cf6 50%,#a78bfa 100%);
+        --brand-shadow: 0 8px 20px -8px rgba(139,92,246,.55);
       }
     }
     *{box-sizing:border-box}
@@ -34,7 +58,7 @@
     .receipt-wrap{max-width:380px;margin:0 auto 60px}
     .receipt-paper{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:26px 22px;font-family:'SF Mono','Consolas','Courier New',monospace}
     .r-center{text-align:center}
-    .r-store-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#2f4fd6 0%,#5b3fc9 50%,#8b4ce0 100%);display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+    .r-store-icon{width:36px;height:36px;border-radius:10px;background:var(--brand-grad);display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
     .r-store-icon svg{width:18px;height:18px;color:#fff}
     .r-store-name{font-size:15px;font-weight:800;letter-spacing:.02em;font-family:-apple-system,sans-serif}
     .r-store-sub{font-size:10.5px;color:var(--text-3);margin-top:3px;font-family:-apple-system,sans-serif;line-height:1.5}
@@ -53,18 +77,47 @@
     .r-barcode{display:flex;align-items:flex-end;gap:2px;justify-content:center;height:34px;margin:16px 0 6px}
     .r-barcode span{display:block;width:2px;background:var(--text)}
 
-    .print-btn{width:100%;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#2f4fd6 0%,#5b3fc9 50%,#8b4ce0 100%);color:#fff;border:0;border-radius:11px;padding:13px;font-size:13.5px;font-weight:700;font-family:-apple-system,sans-serif;letter-spacing:-.005em;box-shadow:0 8px 20px -6px rgba(91,63,201,.5)}
+    .print-btn{width:100%;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--brand-grad);color:#fff;border:0;border-radius:11px;padding:13px;font-size:13.5px;font-weight:700;font-family:-apple-system,sans-serif;letter-spacing:-.005em;box-shadow:var(--brand-shadow)}
     .print-btn:hover{filter:brightness(1.1)}
     .print-btn svg{width:16px;height:16px}
     .btn-row{display:flex;gap:10px}
     .btn-row .print-btn{flex:1}
 
+    /* PRINT: force the light palette back, whatever the screen theme is.
+       Printing while in dark mode previously sent near-white --text to a white
+       page - a blank-looking receipt that wasted the customer's paper. Printers
+       drop backgrounds but honour text colour, so the ink has to be reset here. */
     @media print{
+      :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+        --bg:#ffffff; --surface:#ffffff; --surface-2:#ffffff; --border:#cccccc;
+        --text:#000000; --text-2:#333333; --text-3:#555555;
+        --good:#0a7a45; --warn:#8a5a00;
+        --shadow:none;
+      }
       .receipt-toolbar, .btn-row{display:none}
-      body{background:#fff;padding:0}
-      .receipt-paper{box-shadow:none;border:none}
+      body{background:#fff;padding:0;color:#000}
+      .receipt-paper{box-shadow:none;border:none;background:#fff}
+      /* The store badge is a solid colour block; printers usually strip it, so
+         make sure the glyph inside is still legible if they don't. */
+      .r-store-icon{background:none;border:1.5px solid #000}
+      .r-store-icon svg{color:#000}
+      .r-barcode span{background:#000}
     }
   </style>
+  <script>
+    // Standalone page: adopt the theme the user picked in the app (same
+    // localStorage key stocksense.js uses). Runs in <head>, before first paint,
+    // so the receipt never flashes the wrong theme. Wrapped in try/catch because
+    // localStorage throws in private mode and on file:// origins.
+    (function () {
+      try {
+        var t = localStorage.getItem('stocksense-theme');
+        if (t === 'dark' || t === 'light') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* fall back to prefers-color-scheme */ }
+    })();
+  </script>
 </head>
 <body>
 
@@ -79,8 +132,23 @@
   <div class="receipt-paper">
     <div class="r-center">
       <div class="r-store-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg></div>
-      <div class="r-store-name">StockSense</div>
-      <div class="r-store-sub">AI-Powered Inventory Management<br>Tel: +94 11 000 0000</div>
+      <!-- Letterhead comes from Store Details (/settings/store), injected into every
+           page by GlobalModelAdvice. Each line is omitted when the field is blank,
+           so an unconfigured shop gets a clean receipt rather than empty rows. -->
+      <div class="r-store-name" th:text="${store != null ? store.storeName : 'StockSense'}">StockSense</div>
+      <div class="r-store-sub">
+        <span th:if="${store != null and !#strings.isEmpty(store.tagline)}"
+              th:text="${store.tagline}">Tagline</span>
+        <br th:if="${store != null and !#strings.isEmpty(store.tagline)}"/>
+        <span th:if="${store != null and !#strings.isEmpty(store.address)}"
+              th:text="${store.address}">Address</span>
+        <br th:if="${store != null and !#strings.isEmpty(store.address)}"/>
+        <span th:if="${store != null and !#strings.isEmpty(store.phone)}"
+              th:text="'Tel: ' + ${store.phone}">Tel</span>
+        <br th:if="${store != null and !#strings.isEmpty(store.phone)}"/>
+        <span th:if="${store != null and !#strings.isEmpty(store.taxNumber)}"
+              th:text="'VAT: ' + ${store.taxNumber}">VAT</span>
+      </div>
     </div>
 
     <hr class="r-dashed">
@@ -121,8 +189,8 @@
     </div>
 
     <div class="r-footer">
-      <b>Thank you for your purchase!</b>
-      *** StockSense ***
+      <b th:text="${store != null and !#strings.isEmpty(store.receiptFooter)} ? ${store.receiptFooter} : 'Thank you for your purchase!'">Thank you for your purchase!</b>
+      <span th:text="'*** ' + ${store != null ? store.storeName : 'StockSense'} + ' ***'">*** StockSense ***</span>
     </div>
   </div>
 

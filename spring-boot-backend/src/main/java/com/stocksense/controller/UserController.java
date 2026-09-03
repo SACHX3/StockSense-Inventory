@@ -74,6 +74,24 @@ public class UserController {
         return "redirect:/users";
     }
 
+    // Admin-only by SecurityConfig: /users/** is already restricted to ROLE_ADMIN,
+    // so this endpoint inherits that. The template hides the button too, but the
+    // URL protection is what actually enforces it.
+    @PostMapping("/delete/{id}")
+    public String delete(@PathVariable Long id,
+                         java.security.Principal principal,
+                         RedirectAttributes redirectAttributes) {
+        try {
+            userService.delete(id, principal != null ? principal.getName() : null);
+            redirectAttributes.addFlashAttribute("successMsg", "User deleted.");
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("warningMsg", e.getMessage());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMsg", "Could not delete user: " + e.getMessage());
+        }
+        return "redirect:/users";
+    }
+
     @PostMapping("/toggle/{id}")
     public String toggleStatus(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {

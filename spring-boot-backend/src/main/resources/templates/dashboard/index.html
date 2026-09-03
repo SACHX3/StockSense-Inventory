@@ -15,11 +15,13 @@
     </div>
   </div>
   <div class="head-actions">
-    <a th:href="@{/api/dashboard/export-pdf(range=30)}" id="dashExportBtn" class="btn-ghost" download><i class="bi bi-file-earmark"></i> Export</a>
-    <div class="segmented" id="dashRangeSegmented">
-      <button type="button" data-range="7">7d</button>
-      <button type="button" class="active" data-range="30">30d</button>
-      <button type="button" data-range="90">90d</button>
+    <a th:href="@{/api/dashboard/export-pdf(range=30)}" id="dashExportBtn" class="btn-ghost" download
+       title="Download a PDF report for the selected period"><i class="bi bi-file-earmark"></i> Export<span id="dashExportRangeLabel" class="btn-ghost-suffix"> · 30d</span></a>
+    <div class="segmented" id="dashRangeSegmented" role="group" aria-label="Export report period"
+         title="Period covered by the exported PDF report">
+      <button type="button" data-range="7" aria-pressed="false">7d</button>
+      <button type="button" class="active" data-range="30" aria-pressed="true">30d</button>
+      <button type="button" data-range="90" aria-pressed="false">90d</button>
     </div>
   </div>
 </div>
@@ -155,7 +157,10 @@
         <div class="fnote">
           <span th:if="${stats.forecastSparkline.daysUntilStockout != null}">
             At current sell-through, stock runs out in <b style="color:var(--text)" th:text="${stats.forecastSparkline.daysUntilStockout} + ' days'">6 days</b>.
-            <span th:if="${stats.forecastSparkline.recommendedReorderQty != null}">Reordering now keeps a 3-week buffer.</span>
+            <span th:if="${stats.forecastSparkline.recommendedReorderQty != null}"
+                  th:text="'Current stock: ' + ${stats.forecastSparkline.currentStock} + ' ' + ${stats.forecastSparkline.unit}
+                         + '. Predicted demand: ' + ${stats.forecastSparkline.totalPredictedDemand} + ' ' + ${stats.forecastSparkline.unit}
+                         + '. Suggested reorder quantity: ' + ${stats.forecastSparkline.recommendedReorderQty} + ' ' + ${stats.forecastSparkline.unit} + '.'">Current stock: 0 piece. Predicted demand: 5 piece. Suggested reorder quantity: 5 piece.</span>
           </span>
           <span th:if="${stats.forecastSparkline.daysUntilStockout == null}">
             No forecast data yet for this product — run a forecast to see stockout predictions.
@@ -166,7 +171,14 @@
 
         <div class="fchart-wrap">
           <div class="fchart-label">
-            Demand trend
+            <!-- State the window and the product explicitly. Both this widget and the
+                 Forecasting page draw a line called "demand trend", and without saying
+                 which product and how many days, two legitimately different views of
+                 different products looked like a bug. -->
+            <span>Demand trend
+              <span style="font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0"
+                    th:text="'· next ' + ${stats.forecastSparkline.days != null ? stats.forecastSparkline.days : 30} + ' days'">· next 30 days</span>
+            </span>
             <span th:if="${stats.forecastSparkline.trendPercent != null}"
                   class="ftrend-pill"
                   th:classappend="${stats.forecastSparkline.trendPercent < 0} ? 'ftrend-down' : ''"
@@ -294,11 +306,11 @@
   <div class="panel-head">
     <div class="title-wrap">
       <span>Top-selling products</span>
-      <span class="subtitle">By units sold — last 3 months</span>
+      <span class="subtitle">Top 20 by units sold — last 3 months</span>
     </div>
   </div>
   <div class="card-body">
-    <div class="chart-wrap tall"><canvas id="topProductsChart"></canvas></div>
+    <div class="chart-wrap tall" style="height:380px"><canvas id="topProductsChart"></canvas></div>
     <div id="topProductsEmptyMsg" class="chart-fallback" style="display:none;">
       <i class="bi bi-graph-up"></i>No sales data yet.
     </div>
@@ -415,9 +427,9 @@
   function textColor() { return window.cssVar('--text-2'); }
 
   // ── 1. Sales & stock movement combo (bars: received/sold, line: trend) ────
-  //    Window controlled by the 7d/30d/90d segmented control. On-page chart uses
-  //    the 30-day dataset already loaded into DAILY; the PDF export (below) asks
-  //    the server for the true 7/30/90-day window via ?range= on export.
+  //    Window controlled by the widget's OWN 7d/30d/90d segmented control
+  //    (#movementRangeSegmented). It is deliberately independent of the page-head
+  //    control (#dashRangeSegmented), which only chooses the PDF export period.
   var movementRangeDays = 30;
   function buildMovementChart() {
     if (typeof Chart === 'undefined') return;
@@ -485,7 +497,10 @@
       if (emptyMsg) emptyMsg.style.display = 'flex';
       return;
     }
-    var labels = TOP_PRODUCTS.map(function (p) { return p.productName; });
+    // Vertical bars. Names run along the x-axis, so they are rotated upright and
+    // truncated - 20 horizontal labels cannot fit side by side at any font size.
+    var full = TOP_PRODUCTS.map(function (p) { return p.productName || 'Unknown'; });
+    var labels = full.map(function (n) { return n.length > 22 ? n.slice(0, 21) + '\u2026' : n; });
     var qty = TOP_PRODUCTS.map(function (p) { return p.quantity || 0; });
     var primary = window.cssVar('--primary') || '#6d5bff';
 
@@ -506,17 +521,37 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: window.cssVar('--surface'), titleColor: window.cssVar('--text'), bodyColor: window.cssVar('--text-2'), borderColor: window.cssVar('--border'), borderWidth: 1, padding: 10, cornerRadius: 8 }
+          tooltip: {
+            backgroundColor: window.cssVar('--surface'), titleColor: window.cssVar('--text'),
+            bodyColor: window.cssVar('--text-2'), borderColor: window.cssVar('--border'),
+            borderWidth: 1, padding: 10, cornerRadius: 8,
+            callbacks: {
+              // Show the untruncated name, so a shortened axis label never hides
+              // which product a bar actually is.
+              title: function (items) { return full[items[0].dataIndex]; },
+              label: function (c) { return ' ' + c.parsed.y + ' units sold'; }
+            }
+          }
         },
         scales: {
           x: {
             grid: { display: false },
-            ticks: { color: textColor(), maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 11 } }
+            // autoSkip off + upright labels: every product keeps its name. Left as
+            // autoSkip:true with maxTicksLimit:10, Chart.js silently dropped every
+            // other label and only about half the 20 products were identifiable.
+            ticks: {
+              color: textColor(), autoSkip: false,
+              // 55 degrees rather than a full 90: angled labels read noticeably
+              // faster than vertical ones, and still let all 20 names sit side by
+              // side without colliding.
+              maxRotation: 55, minRotation: 55,
+              font: { size: 10 }
+            }
           },
           y: {
             beginAtZero: true,
             grid: { color: gridColor() },
-            ticks: { color: textColor() }
+            ticks: { color: textColor(), precision: 0 }
           }
         }
       }
@@ -599,7 +634,11 @@
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { backgroundColor: window.cssVar('--surface'), titleColor: window.cssVar('--text'), bodyColor: window.cssVar('--text-2'), borderColor: window.cssVar('--border'), borderWidth: 1, padding: 8, cornerRadius: 8 } },
-        scales: { x: { display: false }, y: { display: false } }
+        // The Forecasting page's chart uses beginAtZero. Without it Chart.js fits the
+        // y-axis to the data range, so a 0.1-0.5 series gets stretched to fill the
+        // widget and the same forecast looks like a completely different, spikier
+        // curve. Anchoring at zero makes both charts trace the same shape.
+        scales: { x: { display: false }, y: { display: false, beginAtZero: true } }
       }
     });
   }
@@ -669,56 +708,70 @@
     });
   }
 
-  var rangeButtons = document.querySelectorAll('#dashRangeSegmented button');
-  var movementRangeButtons = document.querySelectorAll('#movementRangeSegmented button');
-  var movementSubtitle = document.getElementById('movementSubtitle');
+  // ── Two independent range controls ───────────────────────────────────────
+  //  A) #dashRangeSegmented (page head)  -> ONLY the PDF export period.
+  //  B) #movementRangeSegmented (widget) -> ONLY the Sales & Stock Movement chart.
+  //  They must never drive each other.
+
+  function activate(buttons, days) {
+    [].slice.call(buttons).forEach(function (b) {
+      var on = parseInt(b.getAttribute('data-range'), 10) === days;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  // ── A) Export period ─────────────────────────────────────────────────────
+  var exportRangeButtons = document.querySelectorAll('#dashRangeSegmented button');
   var exportBtn = document.getElementById('dashExportBtn');
+  var exportRangeLabel = document.getElementById('dashExportRangeLabel');
   var exportBasePath = exportBtn ? exportBtn.getAttribute('href').split('?')[0] : '/api/dashboard/export-pdf';
+  var exportRangeDays = 30;
 
-  function syncExportLink() {
-    if (!exportBtn) return;
-    exportBtn.setAttribute('href', exportBasePath + '?range=' + movementRangeDays);
+  function setExportRange(days) {
+    exportRangeDays = days || 30;
+    activate(exportRangeButtons, exportRangeDays);
+    if (exportRangeLabel) exportRangeLabel.textContent = ' \u00b7 ' + exportRangeDays + 'd';
+    if (exportBtn) exportBtn.setAttribute('href', exportBasePath + '?range=' + exportRangeDays);
   }
 
-  function syncRangeButtons(days) {
-    [].concat([].slice.call(rangeButtons), [].slice.call(movementRangeButtons)).forEach(function (b) {
-      b.classList.toggle('active', parseInt(b.getAttribute('data-range'), 10) === days);
-    });
-    if (movementSubtitle) {
-      movementSubtitle.textContent = 'Units sold vs. units received, last ' + days + ' days';
-    }
-  }
-
-  function setMovementRange(days) {
-    movementRangeDays = days || 30;
-    syncRangeButtons(movementRangeDays);
-    buildMovementChart();
-    syncExportLink();
-  }
-
-  rangeButtons.forEach(function (btn) {
+  [].slice.call(exportRangeButtons).forEach(function (btn) {
     btn.addEventListener('click', function () {
-      setMovementRange(parseInt(btn.getAttribute('data-range'), 10) || 30);
+      setExportRange(parseInt(btn.getAttribute('data-range'), 10) || 30);
     });
   });
 
-  movementRangeButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      setMovementRange(parseInt(btn.getAttribute('data-range'), 10) || 30);
-    });
-  });
-
-  // Belt-and-braces: always resolve the export URL from the *currently selected*
-  // range at the exact moment Export is clicked, so a stale href can never be used.
+  // Always resolve the export URL from the currently selected export range at the
+  // exact moment Export is clicked, so a stale href can never be used.
   if (exportBtn) {
     exportBtn.addEventListener('click', function (e) {
       e.preventDefault();
-      syncExportLink();
-      window.location.href = exportBasePath + '?range=' + movementRangeDays;
+      window.location.href = exportBasePath + '?range=' + exportRangeDays;
     });
   }
 
-  syncExportLink();
+  setExportRange(30);
+
+  // ── B) Sales & Stock Movement chart window ───────────────────────────────
+  var movementRangeButtons = document.querySelectorAll('#movementRangeSegmented button');
+  var movementSubtitle = document.getElementById('movementSubtitle');
+
+  function setMovementRange(days) {
+    movementRangeDays = days || 30;
+    activate(movementRangeButtons, movementRangeDays);
+    if (movementSubtitle) {
+      movementSubtitle.textContent = 'Units sold vs. units received, last ' + movementRangeDays + ' days';
+    }
+    buildMovementChart();
+  }
+
+  [].slice.call(movementRangeButtons).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setMovementRange(parseInt(btn.getAttribute('data-range'), 10) || 30);
+    });
+  });
+
+  setMovementRange(30);
 
   ready(function () {
     window.registerChartBuilder(buildMovementChart);

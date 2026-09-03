@@ -357,6 +357,10 @@ public class DashboardService {
     //    Override: once the user generates a forecast on the Forecasting
     //    page during THIS session, that product takes over the widget
     //    until they forecast a different product or start a new session.
+    /** The dashboard sparkline always shows this many days, regardless of the period
+     *  the Forecasting page happened to save. */
+    private static final int SPARKLINE_DAYS = 30;
+
     private DashboardStats.ForecastSparkline buildForecastSparkline(Long sessionForecastProductId) {
         Product target = null;
 
@@ -364,26 +368,28 @@ public class DashboardService {
             target = productRepository.findById(sessionForecastProductId).orElse(null);
         }
 
-        // Default: the low-stock product with the smallest quantity - most urgent restock candidate
+        // Default: the most urgent restock candidate. Shared with the Forecasting page
+        // via ProductService so both open on the same product.
         if (target == null) {
-            List<Product> lowStock = productRepository.findLowStockProducts();
-            if (lowStock.isEmpty()) return null;
-            target = lowStock.stream()
-                    .min(Comparator.comparingInt(p -> p.getQuantity() == null ? 0 : p.getQuantity()))
-                    .orElse(null);
+            target = productService.findMostUrgentLowStock().orElse(null);
         }
         if (target == null) return null;
 
         List<ForecastResult> results = forecastResultRepository
                 .findByProductIdAndForecastDateAfterOrderByForecastDateAsc(target.getId(), LocalDate.now().minusDays(1));
 
-        // Auto-generate a forecast for the dashboard's default (most-urgent low-stock) item
-        // if nobody has run one yet, so the widget always has a real demand trend to show
-        // instead of an empty chart. Manual forecasts run from the Forecasting page still
-        // take priority via sessionForecastProductId above.
-        if (results.isEmpty()) {
+        // Regenerate when:
+        //   - nothing is saved, or
+        //   - fewer rows than the widget's window (the user asked the Forecasting page
+        //     for 7 days, so only 7 rows exist), or
+        //   - the rows predate the predicted_demand_exact column, so every value would
+        //     fall back to the rounded Integer and a slow mover would plot as a flat
+        //     line of zeros.
+        boolean staleRows = !results.isEmpty()
+                && results.stream().noneMatch(r -> r.getPredictedDemandExact() != null);
+        if (results.size() < SPARKLINE_DAYS || staleRows) {
             try {
-                aiIntegrationService.getForecast(target.getId(), 30);
+                aiIntegrationService.getForecast(target.getId(), SPARKLINE_DAYS);
                 results = forecastResultRepository
                         .findByProductIdAndForecastDateAfterOrderByForecastDateAsc(target.getId(), LocalDate.now().minusDays(1));
             } catch (Exception e) {
@@ -391,31 +397,87 @@ public class DashboardService {
             }
         }
 
+        // Pin the widget to a fixed 30-day window.
+        //
+        // The rows in forecast_results are whatever the Forecasting page last saved -
+        // 7, 30 or 90 days, depending on which period the user picked there. That is
+        // why the two "demand trend" lines could look completely different: same
+        // product, different length. Taking the first 30 days from today gives the
+        // dashboard a stable window while keeping the values byte-identical to what
+        // the Forecasting page plots, so the two charts trace the same shape.
+        if (results.size() > SPARKLINE_DAYS) {
+            results = results.subList(0, SPARKLINE_DAYS);
+        }
+
         DashboardStats.ForecastSparkline spark = new DashboardStats.ForecastSparkline();
+        spark.setDays(results.size());
         spark.setProductId(target.getId());
         spark.setProductName(target.getName());
         spark.setImagePath(target.getImagePath());
 
         if (!results.isEmpty()) {
-            List<Integer> demand = new ArrayList<>();
+            // Plot the un-rounded series. The Forecasting page plots the same numbers,
+            // so the two demand-trend lines trace an identical shape - and a slow mover
+            // shows its real rise and fall instead of a flat line of zeros.
+            List<Double> demand = new ArrayList<>();
             List<String>  labels = new ArrayList<>();
             for (ForecastResult r : results) {
-                demand.add(r.getPredictedDemand() == null ? 0 : r.getPredictedDemand());
+                double v = r.getPredictedDemandExact() != null
+                        ? r.getPredictedDemandExact().doubleValue()
+                        : (r.getPredictedDemand() == null ? 0d : r.getPredictedDemand().doubleValue());
+                demand.add(Math.round(v * 100.0) / 100.0);
                 labels.add(r.getForecastDate() != null ? r.getForecastDate().toString() : "");
             }
             spark.setPredictedDemand(demand);
             spark.setLabels(labels);
 
-            // Estimate days-until-stockout from current quantity and average predicted daily demand
-            double avgDemand = demand.stream().mapToInt(Integer::intValue).average().orElse(0);
+            // Average daily demand drives days-until-stockout AND the reorder quantity, so
+            // it must come from the UN-ROUNDED predictions. Averaging the Integer column
+            // is what broke "Reorder qty": a product selling 0.4/day stores 0 for every
+            // day of the window, the mean lands on 0.0, and the whole block below was
+            // skipped - the widget showed a dash instead of a number.
+            // `demand` already holds the un-rounded value per row, falling back to the
+            // rounded Integer for rows saved before that column existed.
+            double avgDemand = demand.stream().mapToDouble(Double::doubleValue).average().orElse(0);
             int qty = target.getQuantity() == null ? 0 : target.getQuantity();
             spark.setDaysUntilStockout(avgDemand > 0 ? (int) Math.ceil(qty / avgDemand) : null);
 
-            // Recommend a reorder quantity to cover a 3-week (21-day) buffer at the
-            // predicted daily demand rate, on top of current stock on hand.
+            // Same three numbers the Forecasting page's Reorder Recommendation prints,
+            // computed from the same rows, so the widget and that page never disagree.
+            double totalDemand = demand.stream().mapToDouble(Double::doubleValue).sum();
+            spark.setTotalPredictedDemand((int) Math.round(totalDemand));
+            spark.setCurrentStock(qty);
+            spark.setUnit(target.getUnit() == null || target.getUnit().isBlank() ? "units" : target.getUnit());
+
+            // Reorder quantity now accounts for the supplier's lead time. Covering a
+            // flat 21 days ignored the fact that stock ordered today does not arrive
+            // today: with a 10-day supplier you must already hold 10 days of demand
+            // when the order is placed, or you stock out while it is in transit.
+            //
+            //   cover = lead time (demand consumed while waiting) + 14-day buffer
+            //
+            // Suppliers default to 7 days, so behaviour is unchanged for anyone who
+            // has not filled the field in.
             if (avgDemand > 0) {
-                int bufferTarget = (int) Math.ceil(avgDemand * 21);
-                spark.setRecommendedReorderQty(Math.max(0, bufferTarget - qty));
+                int leadTime = 7;
+                if (target.getSupplier() != null && target.getSupplier().getLeadTimeDays() != null
+                        && target.getSupplier().getLeadTimeDays() > 0) {
+                    leadTime = target.getSupplier().getLeadTimeDays();
+                }
+                spark.setLeadTimeDays(leadTime);
+
+                // Reorder quantity = predicted demand for the window minus what is on
+                // the shelf - identical to the Forecasting page. The old lead-time
+                // formula (avg x (lead + 14) - stock) was a different, larger cover
+                // period, which is why the same product read 4 here and 5 there.
+                spark.setRecommendedReorderQty(Math.max(0, spark.getTotalPredictedDemand() - qty));
+
+                // Days of stock left minus lead time = how long you can wait before
+                // ordering. Zero or less means the order is already overdue.
+                Integer daysLeft = spark.getDaysUntilStockout();
+                if (daysLeft != null) {
+                    spark.setDaysUntilReorder(daysLeft - leadTime);
+                }
             }
 
             // Trend %: compare the average of the first half of the forecast window vs
@@ -423,8 +485,8 @@ public class DashboardService {
             // indicator instead of a fabricated number.
             if (demand.size() >= 2) {
                 int mid = demand.size() / 2;
-                double firstHalfAvg = demand.subList(0, mid).stream().mapToInt(Integer::intValue).average().orElse(0);
-                double secondHalfAvg = demand.subList(mid, demand.size()).stream().mapToInt(Integer::intValue).average().orElse(0);
+                double firstHalfAvg = demand.subList(0, mid).stream().mapToDouble(Double::doubleValue).average().orElse(0);
+                double secondHalfAvg = demand.subList(mid, demand.size()).stream().mapToDouble(Double::doubleValue).average().orElse(0);
                 if (firstHalfAvg > 0) {
                     double pct = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
                     spark.setTrendPercent(Math.round(pct * 10) / 10.0);

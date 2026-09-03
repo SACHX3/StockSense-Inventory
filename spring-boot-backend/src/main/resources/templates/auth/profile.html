@@ -102,7 +102,12 @@
 </th:block>
 <th:block th:fragment="scripts">
 <style>
-.profile-grid{display:grid;grid-template-columns:280px 1fr;gap:20px}
+.profile-grid{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start}
+/* Each column stacks its own panels. .panel carries no margin of its own (see
+   stocksense.css), so without this the two cards in the left column sat flush
+   against each other with no gap at all. Same 20px as the grid, so the vertical
+   rhythm between cards matches the horizontal gap between columns. */
+.profile-grid > div{display:flex;flex-direction:column;gap:20px}
 @media (max-width:900px){.profile-grid{grid-template-columns:1fr}}
 
 .avatar-card{text-align:center;padding:26px 18px}

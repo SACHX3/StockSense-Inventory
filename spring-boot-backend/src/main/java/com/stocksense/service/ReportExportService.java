@@ -2,6 +2,7 @@ package com.stocksense.service;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfPageEventHelper;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.stocksense.dto.response.SupplierCoverageRow;
 import com.stocksense.entity.Product;
@@ -30,6 +31,34 @@ import java.util.ArrayList;
 @Service
 @RequiredArgsConstructor
 public class ReportExportService {
+    private final StoreProfileService storeProfileService;
+
+    /** Header/footer text for the letterhead, taken from Store Details. */
+    private PdfPageEventHelper storeLetterhead(String reportTitle, String metaLine) {
+        com.stocksense.entity.StoreProfile s;
+        try {
+            s = storeProfileService.get();
+        } catch (Exception e) {
+            return letterheadEvent(reportTitle, metaLine);   // defaults
+        }
+        // Sub-line: tagline, phone and address, skipping whatever is blank so an
+        // unconfigured shop does not print stray separators.
+        StringBuilder sub = new StringBuilder();
+        appendPart(sub, s.getTagline());
+        appendPart(sub, s.getPhone() != null && !s.getPhone().isBlank() ? "Tel: " + s.getPhone() : null);
+        appendPart(sub, s.getAddress());
+        StringBuilder footer = new StringBuilder(s.getStoreName() == null ? "StockSense" : s.getStoreName());
+        if (s.getPhone() != null && !s.getPhone().isBlank()) footer.append("  \u00b7  ").append(s.getPhone());
+        if (s.getEmail() != null && !s.getEmail().isBlank()) footer.append("  \u00b7  ").append(s.getEmail());
+        return letterheadEvent(reportTitle, metaLine, s.getStoreName(), sub.toString(), footer.toString());
+    }
+
+    private void appendPart(StringBuilder sb, String part) {
+        if (part == null || part.isBlank()) return;
+        if (sb.length() > 0) sb.append("  \u00b7  ");
+        sb.append(part.trim());
+    }
+
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
@@ -41,7 +70,7 @@ public class ReportExportService {
         try {
             PdfWriter writer = PdfWriter.getInstance(doc, out);
             String period = from.format(DATE_FMT) + " – " + to.format(DATE_FMT);
-            writer.setPageEvent(letterheadEvent("Sales Report", "Period " + period + "  ·  " + generatedAtLine()));
+            writer.setPageEvent(storeLetterhead("Sales Report", "Period " + period + "  ·  " + generatedAtLine()));
             doc.open();
 
             BigDecimal totalRevenue = BigDecimal.ZERO;
@@ -108,7 +137,7 @@ public class ReportExportService {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(letterheadEvent("Inventory Report", generatedAtLine()));
+            writer.setPageEvent(storeLetterhead("Inventory Report", generatedAtLine()));
             doc.open();
 
             BigDecimal totalValue = BigDecimal.ZERO;
@@ -202,7 +231,7 @@ public class ReportExportService {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(letterheadEvent("Supplier Report", generatedAtLine()));
+            writer.setPageEvent(storeLetterhead("Supplier Report", generatedAtLine()));
             doc.open();
 
             PdfPTable kpiTable = new PdfPTable(4);
@@ -329,7 +358,7 @@ public class ReportExportService {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(letterheadEvent(title, generatedAtLine()));
+            writer.setPageEvent(storeLetterhead(title, generatedAtLine()));
             doc.open();
 
             doc.add(sectionTitle(title + " (" + rows.size() + " rows)"));

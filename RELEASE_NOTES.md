@@ -1,4 +1,4 @@
-# StockSense v1.0.1 — Release Notes
+# StockSense v1.0.2 — Release Notes
 
 ## Overview
 StockSense is an AI-powered inventory management system combining a Spring Boot
@@ -20,5 +20,5 @@ forecasting.
 - Frontend: Thymeleaf, Bootstrap 5
 
 ## Status
-Version 1.0.0 — feature-complete for the core inventory, sales, OCR, and
+Version 1.0.2 — feature-complete for the core inventory, sales, OCR, and
 forecasting workflows.

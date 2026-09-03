@@ -72,6 +72,14 @@
                   th:selected="${supplier.paymentTerms == t}">Terms</option>
         </select>
       </div>
+      <div class="field">
+        <label class="form-label">Lead Time (days)</label>
+        <input type="number" name="leadTimeDays" min="0" max="365" class="form-control"
+               th:value="${supplier.leadTimeDays != null ? supplier.leadTimeDays : 7}" placeholder="7"/>
+        <small style="display:block;margin-top:5px;font-size:11px;color:var(--text-3)">
+          Days from placing an order to receiving it. Used to work out when to reorder.
+        </small>
+      </div>
       <div class="field full">
         <label class="form-label">Notes</label>
         <textarea name="notes" class="form-control" rows="2" th:text="${supplier.notes}"></textarea>

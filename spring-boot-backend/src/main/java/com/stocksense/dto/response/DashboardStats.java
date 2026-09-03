@@ -103,10 +103,20 @@ public class DashboardStats {
 
     @Data
     public static class ForecastSparkline {
+        /** Number of forecast days actually plotted (the widget's fixed window). */
+        private Integer days;
+        /** Supplier lead time used for the reorder maths (days). */
+        private Integer leadTimeDays;
+        /** Days you can still wait before ordering: daysUntilStockout - leadTimeDays.
+         *  Zero or negative means the reorder is already overdue. */
+        private Integer daysUntilReorder;
         private Long productId;
         private String productName;
         private String imagePath;
-        private List<Integer> predictedDemand;
+        /** Daily predicted demand for the chart, UN-ROUNDED.
+         *  Rounded integers make a slow mover (0.4 units/day) plot as thirty zeros -
+         *  a dead flat line at the bottom of the widget. */
+        private List<Double> predictedDemand;
         private List<String> labels;
         private Integer daysUntilStockout;
         private Integer recommendedReorderQty;
@@ -115,5 +125,13 @@ public class DashboardStats {
          * real sales history to learn from, so the numbers above (stockout days,
          * reorder qty, trend) aren't meaningful even though a forecast row exists. */
         private Boolean insufficientData;
+        /** Current on-hand stock, so the widget can print the same sentence as the
+         *  Forecasting page's Reorder Recommendation. */
+        private Integer currentStock;
+        /** Total predicted demand across the whole window, rounded - the exact number
+         *  the Forecasting page calls "Predicted demand". */
+        private Integer totalPredictedDemand;
+        /** Unit label ("piece", "kg", ...) for the recommendation sentence. */
+        private String unit;
     }
 }

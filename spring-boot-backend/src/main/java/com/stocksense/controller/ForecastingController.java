@@ -31,8 +31,20 @@ public class ForecastingController {
     private final AiServiceProcessManager aiServiceProcessManager;
 
     @GetMapping
-    public String forecastPage(Model model) {
+    public String forecastPage(Model model, jakarta.servlet.http.HttpSession session) {
         model.addAttribute("products", productService.findAllActive());
+
+        // Open on the same product the dashboard's AI Forecast widget is showing, so
+        // both pages draw the demand-trend line for the same item instead of the user
+        // comparing two unrelated products. Whatever they last forecast in this session
+        // wins; otherwise it is the most urgent low-stock item, the same rule the
+        // dashboard uses (ProductService.findMostUrgentLowStock).
+        Long defaultProductId = (Long) session.getAttribute("lastForecastProductId");
+        if (defaultProductId == null) {
+            defaultProductId = productService.findMostUrgentLowStock()
+                    .map(com.stocksense.entity.Product::getId).orElse(null);
+        }
+        model.addAttribute("defaultProductId", defaultProductId);
         model.addAttribute("pageTitle", "AI Demand Forecasting");
         return "forecasting/index";
     }

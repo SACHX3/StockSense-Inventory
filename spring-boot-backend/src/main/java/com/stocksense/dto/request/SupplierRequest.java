@@ -24,5 +24,8 @@ public class SupplierRequest {
     private String country = "Sri Lanka";
     private String taxNumber;
     private String paymentTerms;
+
+    /** Days from order to delivery. Defaults to a week when left blank. */
+    private Integer leadTimeDays = 7;
     private String notes;
 }

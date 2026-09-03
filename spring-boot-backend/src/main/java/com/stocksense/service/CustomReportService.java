@@ -69,6 +69,33 @@ public class CustomReportService {
         SUPPLIER_COLUMNS.put("paymentTerms", "Payment Terms");
     }
 
+    /**
+     * Keep only the columns that actually belong to the chosen source, in the
+     * canonical order of that source's map.
+     *
+     * The builder UI keeps all three column groups in the DOM and merely hides the
+     * two that do not apply, so a Sales report used to arrive with the Inventory
+     * and Supplier checkboxes attached as well. Those keys hit `default -> ""` in
+     * the row switch and `getOrDefault(c, c)` in the header, producing exactly the
+     * reported symptom: extra columns headed with a raw key like "stockValue" and
+     * completely empty underneath.
+     *
+     * Ordering by the map (not by request order) also stops a hand-edited URL from
+     * producing duplicate or shuffled columns.
+     */
+    private List<String> sanitize(List<String> requested, Map<String, String> allowed) {
+        if (requested == null || requested.isEmpty()) {
+            return new ArrayList<>(allowed.keySet());
+        }
+        List<String> cols = new ArrayList<>();
+        for (String key : allowed.keySet()) {
+            if (requested.contains(key)) cols.add(key);
+        }
+        // Every requested column was foreign to this source - fall back to the
+        // full set rather than handing back a report with no columns at all.
+        return cols.isEmpty() ? new ArrayList<>(allowed.keySet()) : cols;
+    }
+
     public CustomReportResult build(String source, LocalDate from, LocalDate to,
                                      List<String> columns, String groupBy, String sort) {
         return switch (source == null ? "" : source.toLowerCase()) {
@@ -79,7 +106,7 @@ public class CustomReportService {
     }
 
     private CustomReportResult buildSales(LocalDate from, LocalDate to, List<String> columns, String groupBy, String sort) {
-        List<String> cols = columns != null && !columns.isEmpty() ? columns : new ArrayList<>(SALES_COLUMNS.keySet());
+        List<String> cols = sanitize(columns, SALES_COLUMNS);
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.atTime(23, 59, 59);
         List<Sale> sales = new ArrayList<>(saleService.findByDateRange(start, end));
@@ -123,7 +150,7 @@ public class CustomReportService {
     }
 
     private CustomReportResult buildInventory(List<String> columns) {
-        List<String> cols = columns != null && !columns.isEmpty() ? columns : new ArrayList<>(INVENTORY_COLUMNS.keySet());
+        List<String> cols = sanitize(columns, INVENTORY_COLUMNS);
         List<Product> products = productService.findAllActive();
 
         List<String> headers = cols.stream().map(c -> INVENTORY_COLUMNS.getOrDefault(c, c)).toList();
@@ -152,7 +179,7 @@ public class CustomReportService {
     }
 
     private CustomReportResult buildSuppliers(List<String> columns) {
-        List<String> cols = columns != null && !columns.isEmpty() ? columns : new ArrayList<>(SUPPLIER_COLUMNS.keySet());
+        List<String> cols = sanitize(columns, SUPPLIER_COLUMNS);
         List<Supplier> suppliers = supplierService.findAll();
 
         List<String> headers = cols.stream().map(c -> SUPPLIER_COLUMNS.getOrDefault(c, c)).toList();

@@ -19,6 +19,11 @@
 
   <!-- Local stylesheet first (same-origin, fast) so it never waits on the
        remote Google Fonts request. Font swaps in once it arrives. -->
+  <!-- CSRF token for the page's fetch() calls. Thymeleaf fills these from the
+       request; stocksense.js reads them and attaches the header to every
+       state-changing fetch, so individual call sites need no change. -->
+  <meta name="_csrf" th:content="${_csrf != null} ? ${_csrf.token} : ''"/>
+  <meta name="_csrf_header" th:content="${_csrf != null} ? ${_csrf.headerName} : 'X-CSRF-TOKEN'"/>
   <link rel="stylesheet" th:href="@{/css/stocksense.css}"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -133,6 +138,10 @@
            th:classappend="${currentUri != null and #strings.startsWith(currentUri, '/audit')} ? ' active' : ''">
           <i class="bi bi-shield-check"></i> Audit Log
         </a>
+        <a th:href="@{/settings/store}" class="nav-item"
+           th:classappend="${currentUri != null and #strings.startsWith(currentUri, '/settings')} ? ' active' : ''">
+          <i class="bi bi-gear"></i> Store Details
+        </a>
       </th:block>
 
     </div>
@@ -170,9 +179,10 @@
         <i class="bi bi-list"></i>
       </button>
 
-      <div class="system-live-badge" id="systemLiveBadge" title="All systems operational">
+      <div class="system-live-badge is-checking" id="systemLiveBadge"
+           title="Checking AI service&hellip;" role="status" aria-live="polite">
         <span class="system-live-dot"></span>
-        <span class="system-live-text">System Live</span>
+        <span class="system-live-text" id="systemLiveText">Checking</span>
       </div>
 
       <div class="topbar-spacer" style="flex:1"></div>

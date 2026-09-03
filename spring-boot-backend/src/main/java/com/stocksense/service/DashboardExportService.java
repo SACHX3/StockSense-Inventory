@@ -2,6 +2,7 @@ package com.stocksense.service;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfPageEventHelper;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.stocksense.dto.response.DashboardStats;
 
@@ -24,13 +25,41 @@ import static com.itextpdf.text.Element.*;
 @Service
 @RequiredArgsConstructor
 public class DashboardExportService {
+    private final StoreProfileService storeProfileService;
+
+    /** Header/footer text for the letterhead, taken from Store Details. */
+    private PdfPageEventHelper storeLetterhead(String reportTitle, String metaLine) {
+        com.stocksense.entity.StoreProfile s;
+        try {
+            s = storeProfileService.get();
+        } catch (Exception e) {
+            return letterheadEvent(reportTitle, metaLine);   // defaults
+        }
+        // Sub-line: tagline, phone and address, skipping whatever is blank so an
+        // unconfigured shop does not print stray separators.
+        StringBuilder sub = new StringBuilder();
+        appendPart(sub, s.getTagline());
+        appendPart(sub, s.getPhone() != null && !s.getPhone().isBlank() ? "Tel: " + s.getPhone() : null);
+        appendPart(sub, s.getAddress());
+        StringBuilder footer = new StringBuilder(s.getStoreName() == null ? "StockSense" : s.getStoreName());
+        if (s.getPhone() != null && !s.getPhone().isBlank()) footer.append("  \u00b7  ").append(s.getPhone());
+        if (s.getEmail() != null && !s.getEmail().isBlank()) footer.append("  \u00b7  ").append(s.getEmail());
+        return letterheadEvent(reportTitle, metaLine, s.getStoreName(), sub.toString(), footer.toString());
+    }
+
+    private void appendPart(StringBuilder sb, String part) {
+        if (part == null || part.isBlank()) return;
+        if (sb.length() > 0) sb.append("  \u00b7  ");
+        sb.append(part.trim());
+    }
+
 
     public byte[] exportDashboardPdf(DashboardStats stats, int rangeDays) throws IOException {
         Document doc = newDocument();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(letterheadEvent("Dashboard Report", generatedAtLine() + "  ·  last " + rangeDays + " days"));
+            writer.setPageEvent(storeLetterhead("Dashboard Report", generatedAtLine() + "  ·  last " + rangeDays + " days"));
             doc.open();
 
             // ── KPI row ──────────────────────────────────────────────────

@@ -16,14 +16,35 @@
   </div>
 </div>
 
+<!-- Same card anatomy as the Reports page KPI grid: kpi > kpi-top > kpi-icon,
+     then value, then label. The icon colour matches the value colour so the
+     badge and the number read as one unit. -->
 <div class="kpi-grid" style="margin-bottom:18px">
-  <div class="kpi"><div class="kpi-value" th:text="${sales.totalElements}">0</div><div class="kpi-label">Total Sales</div></div>
-  <div class="kpi"><div class="kpi-value" id="sRevenue" style="color:var(--good)">...</div><div class="kpi-label">Total Revenue (this page)</div></div>
-  <div class="kpi"><div class="kpi-value" id="sDiscount" style="color:var(--warn)">...</div><div class="kpi-label">Total Discount (this page)</div></div>
-  <div class="kpi"><div class="kpi-value" id="sAvg">...</div><div class="kpi-label">Average Sale (this page)</div></div>
+  <div class="kpi">
+    <div class="kpi-top"><div class="kpi-icon blue"><i class="bi bi-receipt"></i></div></div>
+    <div class="kpi-value" th:text="${sales.totalElements}">0</div>
+    <div class="kpi-label">Total Sales</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><div class="kpi-icon green"><i class="bi bi-currency-exchange"></i></div></div>
+    <div class="kpi-value" id="sRevenue" style="color:var(--good)">...</div>
+    <div class="kpi-label">Total Revenue (this page)</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><div class="kpi-icon orange"><i class="bi bi-percent"></i></div></div>
+    <div class="kpi-value" id="sDiscount" style="color:var(--warn)">...</div>
+    <div class="kpi-label">Total Discount (this page)</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><div class="kpi-icon red"><i class="bi bi-bar-chart"></i></div></div>
+    <div class="kpi-value" id="sAvg">...</div>
+    <div class="kpi-label">Average Sale (this page)</div>
+  </div>
 </div>
 
-<div class="panel">
+<!-- .panel has no margin of its own (stocksense.css), so the filter card and the
+     table card below it sat flush against each other with no gap. -->
+<div class="panel" style="margin-bottom:18px">
   <div class="filter-bar">
     <div class="filter-field" style="min-width:220px">
       <label>Search</label>

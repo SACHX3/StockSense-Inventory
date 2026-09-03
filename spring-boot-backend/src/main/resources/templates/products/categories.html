@@ -95,6 +95,9 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="editCatForm" method="post" enctype="multipart/form-data">
+        <!-- action is assigned in JS, so Thymeleaf cannot inject the CSRF field here. -->
+        <input type="hidden" th:name="${_csrf != null ? _csrf.parameterName : '_csrf'}"
+               th:value="${_csrf != null ? _csrf.token : ''}"/>
         <input type="hidden" name="removeImage" id="removeImageField" value="false"/>
         <div class="modal-header">
           <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Category</h5>

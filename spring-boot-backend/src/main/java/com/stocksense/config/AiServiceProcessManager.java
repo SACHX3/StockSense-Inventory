@@ -236,8 +236,13 @@ public class AiServiceProcessManager {
         Path venvPython = windows
                 ? fastApiDir.resolve("venv").resolve("Scripts").resolve("python.exe")
                 : fastApiDir.resolve("venv").resolve("bin").resolve("python");
-        if (Files.exists(venvPython)) {
+        if (Files.exists(venvPython) && venvHasUvicorn(fastApiDir, windows)) {
             return venvPython.toAbsolutePath().toString();
+        }
+        if (Files.exists(venvPython)) {
+            log.warn("Ignoring virtual environment at {} - it exists but has no uvicorn installed "
+                    + "(half-finished 'pip install'?). Falling back to a Python on PATH. "
+                    + "To repair it, delete the venv folder and re-run start.bat / start.sh.", venvPython);
         }
 
         // 2) Whatever Python is on the JVM's own PATH.
@@ -261,6 +266,32 @@ public class AiServiceProcessManager {
         log.warn("Python not found. Tried PATH ({}) and, on macOS/Linux, these paths: {}",
                 String.join(", ", candidates), String.join(", ", MAC_LINUX_PYTHON_PATHS));
         return null;
+    }
+
+    /** A venv folder that exists but has no uvicorn in it is worse than no venv at all:
+     *  launching it gives "No module named uvicorn" and the AI service dies instantly.
+     *  This happens when a 'pip install -r requirements.txt' was interrupted. */
+    private boolean venvHasUvicorn(Path fastApiDir, boolean windows) {
+        Path venv = fastApiDir.resolve("venv");
+        Path sitePackages = windows
+                ? venv.resolve("Lib").resolve("site-packages")
+                : venv.resolve("lib");
+        if (Files.isDirectory(sitePackages.resolve("uvicorn"))) {
+            return true;
+        }
+        Path scripts = windows ? venv.resolve("Scripts") : venv.resolve("bin");
+        if (Files.exists(scripts.resolve(windows ? "uvicorn.exe" : "uvicorn"))) {
+            return true;
+        }
+        if (!windows) {
+            // lib/pythonX.Y/site-packages/uvicorn
+            try (java.util.stream.Stream<Path> versions = Files.list(venv.resolve("lib"))) {
+                return versions.anyMatch(v -> Files.isDirectory(v.resolve("site-packages").resolve("uvicorn")));
+            } catch (IOException e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     private boolean isOnPath(String command) {

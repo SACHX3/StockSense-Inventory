@@ -322,4 +322,18 @@ reports insufficient-stock errors.
 
 ---
 
+## Author
+
+**Sameera Chathuranga**  
+BSc (Hons) Software Engineering  
+ICBT Campus | Cardiff Metropolitan University
+
+---
+
+## License
+
+Academic project — intended for educational and evaluation purposes
+
+---
+
 *StockSense v1.1 | Built with Spring Boot 3 + FastAPI + MySQL*
